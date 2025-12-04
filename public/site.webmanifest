@@ -1,0 +1,45 @@
+{
+  "name": "AkiliMed",
+  "short_name": "AkiliMed",
+  "description": "Healthcare Management Platform",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#083344",
+  "theme_color": "#083344",
+  "icons": [
+    {
+      "src": "/heart-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/heart-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["medical", "productivity", "health"],
+  "shortcuts": [
+    {
+      "name": "New Appointment",
+      "short_name": "Appointment",
+      "description": "Schedule a new appointment",
+      "url": "/dashboard/appointments?new=true"
+    },
+    {
+      "name": "Patient Search",
+      "short_name": "Patients",
+      "description": "Search patient records",
+      "url": "/dashboard/patients"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "AkiliMed Dashboard"
+    }
+  ]
+}

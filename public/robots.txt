@@ -1,0 +1,21 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://akili-med.netlify.app/sitemap.xml
+
+# Disallow admin and sensitive areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /private/
+Disallow: /dashboard/settings/
+Disallow: /dashboard/account/
+
+# Healthcare-specific exclusions
+Disallow: /patient-records/
+Disallow: /medical-history/
+Disallow: /billing-information/
+
+# Crawl delay for search engines
+Crawl-delay: 10
