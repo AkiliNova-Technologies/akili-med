@@ -105,7 +105,7 @@ export default function SettingsPage() {
   return (
     <>
       <SiteHeader />
-      <div className="min-h-screen bg-gray-50/50">
+      <div className="min-h-screen">
         <div className="container mx-auto p-6">
           <div className="mb-6">
             <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
@@ -1188,7 +1188,7 @@ export default function SettingsPage() {
                 </div>
                 <Button
                   onClick={handleSaveSettings}
-                  className="bg-[#e11d48] hover:bg-[#e11d48]/90"
+                  className="bg-[#e11d48] hover:bg-[#e11d48]/90 text-white"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   Save Changes

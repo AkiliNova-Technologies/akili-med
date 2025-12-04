@@ -564,7 +564,7 @@ export default function ReportsPage() {
                 Print
               </Button>
               <Button
-                className="bg-[#e11d48] hover:bg-[#e11d48]/90 gap-2"
+                className="bg-[#e11d48] hover:bg-[#e11d48]/90 gap-2 text-white"
                 onClick={generateReport}
               >
                 <FileText className="size-4" />

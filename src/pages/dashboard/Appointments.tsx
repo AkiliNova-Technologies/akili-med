@@ -209,7 +209,7 @@ export default function AppointmentsPage() {
       <SiteHeader
         rightActions={
           <Button 
-            className="h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold"
+            className="h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white"
             onClick={() => setSheetOpen(true)}
           >
             <Plus className="mr-2 h-4 w-4" />

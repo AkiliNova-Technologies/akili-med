@@ -298,12 +298,12 @@ const expenseFields: TableField<Expense>[] = [
             {row.category.replace('-', ' ')}
           </Badge>
           {row.isRecurring && (
-            <Badge variant="outline" className="text-xs bg-blue-50">
+            <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-transparent">
               Recurring
             </Badge>
           )}
           {row.requiresApproval && (
-            <Badge variant="outline" className="text-xs bg-yellow-50">
+            <Badge variant="outline" className="text-xs bg-yellow-50 dark:bg-transparent">
               Requires Approval
             </Badge>
           )}
