@@ -16,7 +16,6 @@ import {
   Edit,
   Trash2,
   User,
-  Users,
   Phone,
   Mail,
   MapPin,
@@ -30,7 +29,8 @@ import {
   Heart,
   AlertCircle,
   CheckCircle,
-  UserMinus
+  UserMinus,
+  X
 } from "lucide-react"
 
 import { 
@@ -44,6 +44,7 @@ import { SectionCards, type CardData } from "@/components/section-cards"
 import { cn } from "@/lib/utils"
 import { DataTable, type TableAction, type TableField } from "@/components/data-table"
 import { AddContactSheet } from "@/components/add-contact-sheet"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // Define contact data type
 interface Contact {
@@ -287,25 +288,25 @@ const mockContacts: Contact[] = [
   }
 ]
 
-// Table fields configuration
+// Desktop table fields configuration
 const contactFields: TableField<Contact>[] = [
   {
     key: "fullName",
     header: "Contact",
     cell: (value, row) => (
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+      <div className="flex items-center gap-2 md:gap-3">
+        <div className="hidden md:flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full bg-primary/10">
           {row.type === "company" ? (
-            <Building className="h-5 w-5 text-primary" />
+            <Building className="h-4 w-4 md:h-5 md:w-5 text-primary" />
           ) : row.type === "doctor" ? (
-            <Heart className="h-5 w-5 text-primary" />
+            <Heart className="h-4 w-4 md:h-5 md:w-5 text-primary" />
           ) : (
-            <User className="h-5 w-5 text-primary" />
+            <User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
           )}
         </div>
-        <div>
-          <div className="font-medium">{value as string}</div>
-          <div className="text-sm text-muted-foreground">
+        <div className="min-w-0">
+          <div className="font-medium text-sm md:text-base truncate">{value as string}</div>
+          <div className="text-xs md:text-sm text-muted-foreground truncate">
             {row.type === "company" ? "Company" : 
              row.type === "doctor" ? "Medical Professional" :
              row.type === "supplier" ? "Supplier" :
@@ -316,46 +317,43 @@ const contactFields: TableField<Contact>[] = [
         </div>
       </div>
     ),
-    width: "220px",
+    width: "200px",
     enableSorting: true,
   },
   {
     key: "contactInfo",
-    header: "Contact Information",
+    header: "Contact Info",
     cell: (_, row) => (
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Mail className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">{row.email}</span>
+      <div className="space-y-1 min-w-0">
+        <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground truncate">
+          <Mail className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{row.email}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Phone className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">{row.phone}</span>
+        <div className="md:hidden text-xs text-muted-foreground truncate">
+          {row.email}
         </div>
-        {row.mobile && (
-          <div className="flex items-center gap-2 text-sm text-blue-600">
-            <Phone className="h-3 w-3" />
-            <span>Mobile: {row.mobile}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground truncate">
+          <Phone className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{row.phone}</span>
+        </div>
       </div>
     ),
     width: "200px",
   },
   {
     key: "companyInfo",
-    header: "Company/Organization",
+    header: "Company",
     cell: (_, row) => (
-      <div className="space-y-1">
+      <div className="space-y-1 hidden md:block">
         {row.company ? (
           <>
-            <div className="font-medium">{row.company}</div>
+            <div className="font-medium text-sm">{row.company}</div>
             {row.department && (
               <div className="text-sm text-muted-foreground">
                 {row.department}
               </div>
             )}
-            {row.address && (
+            {row.city && row.state && (
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <MapPin className="h-3 w-3" />
                 <span>{row.city}, {row.state}</span>
@@ -374,17 +372,17 @@ const contactFields: TableField<Contact>[] = [
   },
   {
     key: "contactHistory",
-    header: "Contact History",
+    header: "History",
     cell: (_, row) => (
-      <div className="space-y-1">
+      <div className="space-y-1 hidden md:block">
         <div className="flex items-center gap-2 text-sm">
-          <Calendar className="h-3 w-3 text-muted-foreground" />
-          <span>Last: {new Date(row.lastContact).toLocaleDateString()}</span>
+          <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">Last: {new Date(row.lastContact).toLocaleDateString()}</span>
         </div>
         {row.nextFollowUp && (
           <div className="flex items-center gap-2 text-sm text-green-600">
-            <MessageSquare className="h-3 w-3" />
-            <span>Follow-up: {new Date(row.nextFollowUp).toLocaleDateString()}</span>
+            <MessageSquare className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">Next: {new Date(row.nextFollowUp).toLocaleDateString()}</span>
           </div>
         )}
       </div>
@@ -397,27 +395,13 @@ const contactFields: TableField<Contact>[] = [
     header: "Category",
     cell: (value) => {
       const category = value as string
-      const categoryConfig = {
-        medical: { color: "text-red-600", bg: "bg-red-50", icon: <Heart className="h-3 w-3" /> },
-        business: { color: "text-blue-600", bg: "bg-blue-50", icon: <Briefcase className="h-3 w-3" /> },
-        personal: { color: "text-green-600", bg: "bg-green-50", icon: <User className="h-3 w-3" /> },
-        suppliers: { color: "text-purple-600", bg: "bg-purple-50", icon: <Building className="h-3 w-3" /> },
-        staff: { color: "text-orange-600", bg: "bg-orange-50", icon: <Users className="h-3 w-3" /> },
-      }
-      const config = categoryConfig[category as keyof typeof categoryConfig] || { 
-        color: "text-gray-600", 
-        bg: "bg-gray-50", 
-        icon: <User className="h-3 w-3" />
-      }
-      
       return (
-        <Badge variant="outline" className={cn("gap-2 px-3 rounded-sm")}>
-          {config.icon}
-          <span className="capitalize">{category}</span>
+        <Badge variant="outline" className="capitalize text-xs md:text-sm hidden md:block">
+          {category}
         </Badge>
       )
     },
-    width: "120px",
+    width: "100px",
     align: "center",
     enableSorting: true,
   },
@@ -430,26 +414,26 @@ const contactFields: TableField<Contact>[] = [
         active: { 
           label: "Active", 
           variant: "outline" as const, 
-          color: "text-green-600 ",
+          color: "bg-green-500",
           icon: <CheckCircle className="h-3 w-3" />
         },
         inactive: { 
           label: "Inactive", 
           variant: "outline" as const, 
-          color: "text-gray-600 ",
+          color: "bg-gray-500",
           icon: <UserMinus className="h-3 w-3" />
         },
         pending: { 
           label: "Pending", 
           variant: "outline" as const, 
-          color: "text-yellow-600",
+          color: "bg-yellow-500",
           icon: <AlertCircle className="h-3 w-3" />
         }
       }
       const config = statusConfig[status]
       return (
-        <Badge variant={config.variant} className={cn("gap-2 px-3 rounded-sm", config.color)}>
-          {config.icon}
+        <Badge variant={config.variant} className="gap-1 px-2 md:px-3 text-xs md:text-sm rounded-sm">
+          <span className="hidden md:inline">{config.icon}</span>
           {config.label}
         </Badge>
       )
@@ -462,7 +446,7 @@ const contactFields: TableField<Contact>[] = [
     key: "emergencyContact",
     header: "Emergency",
     cell: (_, row) => (
-      <div className="flex flex-col items-center gap-1">
+      <div className="hidden md:flex flex-col items-center gap-1">
         {row.isEmergencyContact ? (
           <>
             <Badge variant="destructive" className="gap-1 px-2 text-xs rounded-sm">
@@ -481,20 +465,93 @@ const contactFields: TableField<Contact>[] = [
         )}
       </div>
     ),
-    width: "120px",
+    width: "100px",
     align: "center",
+  },
+]
+
+// Mobile table fields
+const mobileContactFields: TableField<Contact>[] = [
+  {
+    key: "contactInfo",
+    header: "Contact",
+    cell: (_, row) => (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-full",
+            row.type === "company" ? "bg-blue-100" :
+            row.type === "doctor" ? "bg-red-100" :
+            row.type === "supplier" ? "bg-purple-100" :
+            "bg-primary/10"
+          )}>
+            {row.type === "company" ? (
+              <Building className="h-4 w-4 text-blue-600" />
+            ) : row.type === "doctor" ? (
+              <Heart className="h-4 w-4 text-red-600" />
+            ) : row.type === "supplier" ? (
+              <Building className="h-4 w-4 text-purple-600" />
+            ) : (
+              <User className="h-4 w-4 text-primary" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-medium text-sm truncate">{row.fullName}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {row.type} • {row.category}
+            </div>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            {row.status}
+          </Badge>
+        </div>
+        <div className="text-xs text-muted-foreground truncate">
+          <Mail className="inline h-3 w-3 mr-1" />
+          {row.email}
+        </div>
+        <div className="text-xs text-muted-foreground truncate">
+          <Phone className="inline h-3 w-3 mr-1" />
+          {row.phone}
+        </div>
+        {row.company && (
+          <div className="text-xs text-muted-foreground truncate">
+            <Building className="inline h-3 w-3 mr-1" />
+            {row.company}
+          </div>
+        )}
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            {row.isEmergencyContact && (
+              <Badge variant="destructive" className="text-xs">
+                Emergency
+              </Badge>
+            )}
+            {row.isPrimaryContact && (
+              <Badge variant="outline" className="text-xs">
+                <Star className="h-2 w-2 mr-1 fill-yellow-500 text-yellow-500" />
+                Primary
+              </Badge>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Last: {new Date(row.lastContact).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </div>
+        </div>
+      </div>
+    ),
+    enableSorting: true,
   },
 ]
 
 // Search input component
 function SearchInput({ className, ...props }: React.ComponentProps<"input">) {
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         type="search"
-        className={cn("pl-10", className)}
-        placeholder="Search contacts by name, email, phone, company..."
+        className={cn("pl-10 w-full text-sm md:text-base", className)}
+        placeholder="Search contacts..."
         {...props}
       />
     </div>
@@ -520,10 +577,12 @@ export default function ContactsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([])
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
+  
+  const isMobile = useIsMobile()
 
   // Filter contacts based on search and filters
   const filteredContacts = useMemo(() => mockContacts.filter((contact) => {
-    // Search filter
     const searchLower = searchQuery.toLowerCase()
     const matchesSearch = 
       !searchQuery ||
@@ -533,15 +592,12 @@ export default function ContactsPage() {
       (contact.company && contact.company.toLowerCase().includes(searchLower)) ||
       (contact.jobTitle && contact.jobTitle.toLowerCase().includes(searchLower))
 
-    // Status filter
     const matchesStatus = 
       statusFilter === "all" || contact.status === statusFilter
 
-    // Type filter
     const matchesType = 
       typeFilter === "all" || contact.type === typeFilter
 
-    // Category filter
     const matchesCategory = 
       categoryFilter === "all" || contact.category === categoryFilter
 
@@ -609,71 +665,55 @@ export default function ContactsPage() {
       type: "view",
       label: "View Contact",
       icon: <Eye className="size-4" />,
-      onClick: (contact) => {
-        console.log("View contact:", contact)
-        // Navigate to contact details
-      },
+      onClick: (contact) => console.log("View contact:", contact),
     },
     {
       type: "edit",
       label: "Edit Contact",
       icon: <Edit className="size-4" />,
-      onClick: (contact) => {
-        console.log("Edit contact:", contact)
-        // Open edit modal
-      },
+      onClick: (contact) => console.log("Edit contact:", contact),
     },
     {
       type: "delete",
       label: "Delete Contact",
       icon: <Trash2 className="size-4" />,
-      onClick: (contact) => {
-        console.log("Delete contact:", contact)
-        // Show delete confirmation
-      },
-      disabled: (contact) => contact.isEmergencyContact && contact.status === "active", // Cannot delete active emergency contacts
+      onClick: (contact) => console.log("Delete contact:", contact),
+      disabled: (contact) => contact.isEmergencyContact && contact.status === "active",
     },
   ]
 
-  // Handle row click
   const handleRowClick = useCallback((contact: Contact) => {
     console.log("Row clicked:", contact)
-    // Navigate to contact details
   }, [])
 
-  // Handle selection change
   const handleSelectionChange = useCallback((selected: Contact[]) => {
     setSelectedContacts(selected)
-    console.log("Selected contacts:", selected.length)
   }, [])
 
-  // Export selected contacts
   const handleExport = useCallback(() => {
     if (selectedContacts.length === 0) {
       alert("Please select contacts to export")
       return
     }
     console.log("Exporting contacts:", selectedContacts)
-    // Implement export logic
   }, [selectedContacts])
 
-  // Send email to selected contacts
   const handleSendEmail = useCallback(() => {
     if (selectedContacts.length === 0) {
       alert("Please select contacts to email")
       return
     }
     console.log("Sending email to:", selectedContacts)
-    // Implement email logic
   }, [selectedContacts])
 
-  // Clear all filters
   const clearFilters = useCallback(() => {
     setSearchQuery("")
     setStatusFilter("all")
     setTypeFilter("all")
     setCategoryFilter("all")
   }, [])
+
+  const hasActiveFilters = searchQuery || statusFilter !== "all" || typeFilter !== "all" || categoryFilter !== "all"
 
   // Get unique types
   const contactTypes = [
@@ -697,29 +737,29 @@ export default function ContactsPage() {
   // Contact Card Component for Grid View
   const ContactCard = ({ contact }: { contact: Contact }) => (
     <Card className="overflow-hidden hover:shadow-md transition-shadow shadow-none border-none">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
+      <CardContent className="p-3 md:p-4">
+        <div className="flex items-start justify-between mb-2 md:mb-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <div className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-full",
+              "flex h-8 w-8 md:h-12 md:w-12 items-center justify-center rounded-full",
               contact.type === "company" ? "bg-blue-100" :
               contact.type === "doctor" ? "bg-red-100" :
               contact.type === "supplier" ? "bg-purple-100" :
               "bg-primary/10"
             )}>
               {contact.type === "company" ? (
-                <Building className="h-6 w-6 text-blue-600" />
+                <Building className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
               ) : contact.type === "doctor" ? (
-                <Heart className="h-6 w-6 text-red-600" />
+                <Heart className="h-4 w-4 md:h-6 md:w-6 text-red-600" />
               ) : contact.type === "supplier" ? (
-                <Building className="h-6 w-6 text-purple-600" />
+                <Building className="h-4 w-4 md:h-6 md:w-6 text-purple-600" />
               ) : (
-                <User className="h-6 w-6 text-primary" />
+                <User className="h-4 w-4 md:h-6 md:w-6 text-primary" />
               )}
             </div>
-            <div>
-              <h3 className="font-semibold text-lg">{contact.fullName}</h3>
-              <p className="text-sm text-muted-foreground capitalize">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-sm md:text-lg truncate">{contact.fullName}</h3>
+              <p className="text-xs md:text-sm text-muted-foreground capitalize truncate">
                 {contact.type}
                 {contact.jobTitle && ` • ${contact.jobTitle}`}
               </p>
@@ -733,28 +773,29 @@ export default function ContactsPage() {
           )}
         </div>
 
-        <div className="space-y-2 mb-3">
-          <div className="flex items-center gap-2">
-            <Mail className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm truncate">{contact.email}</span>
+        <div className="space-y-1 md:space-y-2 mb-2 md:mb-3">
+          <div className="flex items-center gap-1 md:gap-2">
+            <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            <span className="text-xs md:text-sm truncate">{contact.email}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Phone className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm">{contact.phone}</span>
+          <div className="flex items-center gap-1 md:gap-2">
+            <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            <span className="text-xs md:text-sm">{contact.phone}</span>
           </div>
           {contact.company && (
-            <div className="flex items-center gap-2">
-              <Building className="h-3 w-3 text-muted-foreground" />
-              <span className="text-sm">{contact.company}</span>
+            <div className="flex items-center gap-1 md:gap-2">
+              <Building className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <span className="text-xs md:text-sm truncate">{contact.company}</span>
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between text-sm mb-3">
-          <Badge variant="outline" className="capitalize">
+        <div className="flex items-center justify-between text-xs md:text-sm mb-2 md:mb-3">
+          <Badge variant="outline" className="capitalize text-xs md:text-sm">
             {contact.category}
           </Badge>
           <Badge variant="outline" className={cn(
+            "text-xs md:text-sm",
             contact.status === "active" ? "text-green-600 border-green-200" :
             contact.status === "inactive" ? "text-gray-600 border-gray-200" :
             "text-yellow-600 border-yellow-200"
@@ -763,25 +804,25 @@ export default function ContactsPage() {
           </Badge>
         </div>
 
-        <div className="space-y-1 text-sm mb-3">
+        <div className="space-y-1 text-xs md:text-sm mb-2 md:mb-3">
           <div className="flex items-center gap-1 text-muted-foreground">
-            <Calendar className="h-3 w-3" />
-            <span>Last contact: {new Date(contact.lastContact).toLocaleDateString()}</span>
+            <Calendar className="h-3 w-3 flex-shrink-0" />
+            <span>Last: {new Date(contact.lastContact).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
           </div>
           {contact.nextFollowUp && (
             <div className="flex items-center gap-1 text-green-600">
-              <MessageSquare className="h-3 w-3" />
-              <span>Follow-up: {new Date(contact.nextFollowUp).toLocaleDateString()}</span>
+              <MessageSquare className="h-3 w-3 flex-shrink-0" />
+              <span>Next: {new Date(contact.nextFollowUp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1">
+        <div className="mt-3 md:mt-4 flex gap-1 md:gap-2">
+          <Button variant="outline" size="sm" className="flex-1 text-xs md:text-sm h-7 md:h-8">
             <Eye className="h-3 w-3 mr-1" />
             View
           </Button>
-          <Button variant="outline" size="sm" className="flex-1">
+          <Button variant="outline" size="sm" className="flex-1 text-xs md:text-sm h-7 md:h-8">
             <Edit className="h-3 w-3 mr-1" />
             Edit
           </Button>
@@ -796,39 +837,133 @@ export default function ContactsPage() {
         rightActions={
           <Button
             variant={"secondary"} 
-            className="h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white"
+            className="h-9 w-full md:h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white text-sm md:text-base"
             onClick={() => setSheetOpen(true)}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Contact
+            <Plus className="mr-1 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+            <span className="sm:inline">Add Contact</span>
           </Button>
         }
       />
       
-      <div className="min-h-screen p-6">
-        {/* Stats Overview using SectionCards */}
-        <div className="mb-6">
+      <div className="min-h-screen p-3 sm:p-4 md:p-6">
+        {/* Stats Overview - Responsive grid */}
+        <div className="mb-4 md:mb-6">
           <SectionCards
             cards={contactStatsCards}
-            layout="1x4"
-            className="gap-4"
+            layout={isMobile ? "2x2" : "1x4"}
+            className="gap-2 md:gap-4"
           />
         </div>
 
-        {/* Search and Filters */}
-        <Card className="mb-6 border-none shadow-none">
-          <CardContent className="p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-1 flex-col gap-4 sm:flex-row">
+        {/* Search and Filters - Mobile optimized */}
+        <Card className="mb-4 md:mb-6 border-none shadow-none p-0 pt-2">
+          <CardContent className="p-3 md:p-4 lg:p-6">
+            {/* Top row: Search and Filter toggle */}
+            <div className="flex flex-col gap-3 mb-3 md:mb-4">
+              <div className="flex items-center gap-2">
                 <SearchInput
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="sm:w-[450px]"
+                  className="flex-1"
                 />
                 
+                {/* Mobile filter toggle */}
+                {isMobile && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 flex-shrink-0"
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              {/* Mobile filters panel */}
+              {isMobile && showMobileFilters && (
+                <div className="space-y-2 p-2 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Filters</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {contactTypes.map(type => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map(cat => (
+                        <SelectItem key={cat.value} value={cat.value}>
+                          {cat.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop filters row */}
+            {!isMobile && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 <div className="flex flex-wrap gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <Filter className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -841,7 +976,7 @@ export default function ContactsPage() {
                   </Select>
                   
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <User className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
@@ -856,7 +991,7 @@ export default function ContactsPage() {
                   </Select>
                   
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <Briefcase className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
@@ -870,138 +1005,186 @@ export default function ContactsPage() {
                     </SelectContent>
                   </Select>
                   
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="h-10"
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="flex border rounded-md overflow-hidden">
-                  <Button
-                  variant={viewMode === "grid" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                  className={cn(
-                    "h-10 w-[50px] rounded-none border-r",
-                    viewMode === "grid" 
-                    ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
-                    : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-9 text-sm"
+                    >
+                      Clear Filters
+                    </Button>
                   )}
-                  >
-                  <Grid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className={cn(
-                    "h-10 w-[50px] rounded-none",
-                    viewMode === "list" 
-                    ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
-                    : "bg-transparent text-muted-foreground hover:bg-gray-100"
-                  )}
-                  >
-                  <List className="h-4 w-4" />
-                  </Button>
                 </div>
                 
-                {selectedContacts.length > 0 && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExport}
-                      className="h-10"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export ({selectedContacts.length})
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleSendEmail}
-                      className="h-10 bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Mail className="mr-2 h-4 w-4" />
-                      Email ({selectedContacts.length})
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            {/* Filter summary */}
-            {(searchQuery || statusFilter !== "all" || typeFilter !== "all" || categoryFilter !== "all") && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Filtered:</span>
-                {searchQuery && (
-                  <Badge variant="secondary" className="gap-1">
-                    Search: "{searchQuery}"
-                  </Badge>
-                )}
-                {statusFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Status: {statusFilter}
-                  </Badge>
-                )}
-                {typeFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Type: {typeFilter}
-                  </Badge>
-                )}
-                {categoryFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Category: {categoryFilter}
-                  </Badge>
-                )}
-                <Badge variant="outline">
-                  {filteredContacts.length} of {mockContacts.length} contacts
-                </Badge>
-                {stats.emergencyContacts > 0 && (
-                  <Badge variant="outline" className="text-red-600 border-red-200">
-                    {stats.emergencyContacts} emergency
-                  </Badge>
-                )}
+                {/* Desktop view mode toggle */}
+                <div className="flex border rounded-md overflow-hidden ml-auto">
+                  <Button
+                    variant={viewMode === "grid" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("grid")}
+                    className={cn(
+                      "h-9 w-9 rounded-none border-r",
+                      viewMode === "grid" 
+                      ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
+                      : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                    )}
+                  >
+                    <Grid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className={cn(
+                      "h-9 w-9 rounded-none",
+                      viewMode === "list" 
+                      ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
+                      : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                    )}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
+
+            {/* Actions row */}
+            <div className="flex items-center justify-between">
+              {/* Filter summary */}
+              {hasActiveFilters && (
+                <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+                  <span className="text-xs md:text-sm text-muted-foreground">Filtered:</span>
+                  {searchQuery && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      "{searchQuery}"
+                    </Badge>
+                  )}
+                  {statusFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {statusFilter}
+                    </Badge>
+                  )}
+                  {typeFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {typeFilter}
+                    </Badge>
+                  )}
+                  {categoryFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {categoryFilter}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs h-6">
+                    {filteredContacts.length} of {mockContacts.length}
+                  </Badge>
+                  {stats.emergencyContacts > 0 && (
+                    <Badge variant="outline" className="text-xs h-6 text-red-600">
+                      {stats.emergencyContacts} emergency
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {/* Mobile view mode toggle */}
+              {isMobile && (
+                <div className="flex border rounded-md overflow-hidden">
+                  <Button
+                    variant={viewMode === "grid" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("grid")}
+                    className={cn(
+                      "h-8 w-8 rounded-none border-r",
+                      viewMode === "grid" 
+                      ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
+                      : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                    )}
+                  >
+                    <Grid className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className={cn(
+                      "h-8 w-8 rounded-none",
+                      viewMode === "list" 
+                      ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
+                      : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                    )}
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Selected actions */}
+              {selectedContacts.length > 0 && (
+                <div className="flex items-center gap-1 md:gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    className="h-8 md:h-9 text-xs md:text-sm"
+                  >
+                    <Download className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Export</span>
+                    <span className="sm:hidden">Exp</span>
+                    <span className="ml-1">({selectedContacts.length})</span>
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleSendEmail}
+                    className="h-8 md:h-9 bg-blue-600 hover:bg-blue-700 text-xs md:text-sm"
+                  >
+                    <Mail className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Email</span>
+                    <span className="sm:hidden">Email</span>
+                    <span className="ml-1">({selectedContacts.length})</span>
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         {/* Contacts Display */}
         {viewMode === "list" ? (
           <Card className="border-none shadow-none">
-            <CardContent className="px-6">
-              <DataTable
-                title="Contacts"
-                description="Manage and organize all your contacts"
-                data={filteredContacts}
-                fields={contactFields}
-                actions={contactActions}
-                loading={false}
-                enableSelection={true}
-                enablePagination={true}
-                pageSize={8}
-                onRowClick={handleRowClick}
-                onSelectionChange={handleSelectionChange}
-              />
+            <CardContent className={cn("p-0", isMobile ? "px-2" : "px-6")}>
+              <div className="overflow-x-auto">
+                <DataTable
+                  title="Contacts"
+                  description="Manage and organize all your contacts"
+                  data={filteredContacts}
+                  fields={isMobile ? mobileContactFields : contactFields}
+                  actions={contactActions}
+                  loading={false}
+                  enableSelection={isMobile ? false : true}
+                  enablePagination={true}
+                  pageSize={isMobile ? 6 : 8}
+                  onRowClick={handleRowClick}
+                  onSelectionChange={handleSelectionChange}
+                />
+              </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className={cn(
+            "grid gap-3 md:gap-4",
+            isMobile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          )}>
             {filteredContacts.map(contact => (
               <ContactCard key={contact.id} contact={contact} />
             ))}
             {filteredContacts.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">No contacts found</h3>
-                <p className="text-muted-foreground">Try adjusting your filters or search terms</p>
+              <div className="col-span-full text-center py-8 md:py-12">
+                <User className="h-8 w-8 md:h-12 md:w-12 mx-auto text-muted-foreground mb-2 md:mb-4" />
+                <h3 className="text-base md:text-lg font-semibold">No contacts found</h3>
+                <p className="text-sm md:text-base text-muted-foreground">
+                  Try adjusting your filters or search terms
+                </p>
               </div>
             )}
           </div>

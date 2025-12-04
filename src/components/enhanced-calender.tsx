@@ -32,6 +32,8 @@ import {
   List,
   Filter,
   X,
+  Search as SearchIcon,
+  // Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -42,7 +44,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search } from "./ui/search";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface Event {
   id: string;
@@ -119,6 +121,8 @@ export function EnhancedCalendar({
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  const isMobile = useIsMobile();
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -304,43 +308,39 @@ export function EnhancedCalendar({
   };
 
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
+    <div className={cn("flex flex-col gap-3 md:gap-4", className)}>
       {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <h2 className="text-xl font-semibold sm:text-2xl">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <h2 className="text-lg font-semibold sm:text-xl md:text-2xl">
             {view === "month" &&
               currentDate.toLocaleDateString("en-US", {
-                month: "long",
+                month: "short",
                 year: "numeric",
               })}
             {view === "week" &&
-              `Week of ${currentDate.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}`}
+              `Week ${Math.ceil(currentDate.getDate() / 7)}`}
             {view === "day" &&
               currentDate.toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
+                month: "short",
                 day: "numeric",
-                year: "numeric",
               })}
-            {view === "list" && "All Events"}
+            {view === "list" && "All Appointments"}
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="icon"
               onClick={() => navigateDate("prev")}
-              className="h-8 w-8"
+              className="h-7 w-7 md:h-8 md:w-8"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3 w-3 md:h-4 md:w-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setCurrentDate(new Date())}
+              className="h-7 px-2 text-xs md:h-8 md:px-3 md:text-sm"
             >
               Today
             </Button>
@@ -348,427 +348,369 @@ export function EnhancedCalendar({
               variant="outline"
               size="icon"
               onClick={() => navigateDate("next")}
-              className="h-8 w-8"
+              className="h-7 w-7 md:h-8 md:w-8"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
             </Button>
           </div>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {/* Mobile: Select dropdown */}
-          <div className="sm:hidden">
-            <Select value={view} onValueChange={(value: any) => setView(value)}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="month">
-                  <div className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    Month View
-                  </div>
-                </SelectItem>
-                <SelectItem value="week">
-                  <div className="flex items-center gap-2">
-                    <Grid3x3 className="h-4 w-4" />
-                    Week View
-                  </div>
-                </SelectItem>
-                <SelectItem value="day">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Day View
-                  </div>
-                </SelectItem>
-                <SelectItem value="list">
-                  <div className="flex items-center gap-2">
-                    <List className="h-4 w-4" />
-                    List View
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {isMobile && (
+            <div className="sm:hidden">
+              <Select value={view} onValueChange={(value: any) => setView(value)}>
+                <SelectTrigger className="w-full text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month" className="text-xs">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-3 w-3" />
+                      Month View
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="week" className="text-xs">
+                    <div className="flex items-center gap-2">
+                      <Grid3x3 className="h-3 w-3" />
+                      Week View
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="day" className="text-xs">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3 w-3" />
+                      Day View
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="list" className="text-xs">
+                    <div className="flex items-center gap-2">
+                      <List className="h-3 w-3" />
+                      List View
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Desktop: Button group */}
-          <div className="hidden sm:flex items-center gap-1 rounded-sm border bg-background p-1">
-            <Button
-              variant={view === "month" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setView("month")}
-              className="h-8"
-            >
-              <CalendarIcon className="h-4 w-4" />
-              <span className="ml-1">Month</span>
-            </Button>
-            <Button
-              variant={view === "week" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setView("week")}
-              className="h-8"
-            >
-              <Grid3x3 className="h-4 w-4" />
-              <span className="ml-1">Week</span>
-            </Button>
-            <Button
-              variant={view === "day" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setView("day")}
-              className="h-8"
-            >
-              <Clock className="h-4 w-4" />
-              <span className="ml-1">Day</span>
-            </Button>
-            <Button
-              variant={view === "list" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setView("list")}
-              className="h-8"
-            >
-              <List className="h-4 w-4" />
-              <span className="ml-1">List</span>
-            </Button>
-          </div>
-
-          {/* <Button
-            onClick={() => {
-              setIsCreating(true);
-              setIsDialogOpen(true);
-            }}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            New Event
-          </Button> */}
-        </div>
-      </div>
-
-      <div className="flex flex-row gap-6">
-        <div className="relative flex-1">
-          <Search
-            value={searchQuery}
-            onSearchChange={(value) => setSearchQuery(value)}
-            placeholder="Search appointments..."
-            className="rounded-sm bg-input/40"
-          />
-        </div>
-
-        {/* Mobile: Horizontal scroll with full-length buttons */}
-        <div className="sm:hidden -mx-4 px-4">
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {/* Color Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 whitespace-nowrap flex-shrink-0 bg-transparent"
-                >
-                  <Filter className="h-4 w-4" />
-                  Colors
-                  {selectedColors.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                      {selectedColors.length}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel>Filter by Color</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {colors.map((color) => (
-                  <DropdownMenuCheckboxItem
-                    key={color.value}
-                    checked={selectedColors.includes(color.value)}
-                    onCheckedChange={(checked) => {
-                      setSelectedColors((prev) =>
-                        checked
-                          ? [...prev, color.value]
-                          : prev.filter((c) => c !== color.value)
-                      );
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className={cn("h-3 w-3 rounded", color.bg)} />
-                      {color.name}
-                    </div>
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Tag Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 whitespace-nowrap flex-shrink-0 bg-transparent"
-                >
-                  <Filter className="h-4 w-4" />
-                  Tags
-                  {selectedTags.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                      {selectedTags.length}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel>Filter by Tag</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {availableTags.map((tag) => (
-                  <DropdownMenuCheckboxItem
-                    key={tag}
-                    checked={selectedTags.includes(tag)}
-                    onCheckedChange={(checked) => {
-                      setSelectedTags((prev) =>
-                        checked ? [...prev, tag] : prev.filter((t) => t !== tag)
-                      );
-                    }}
-                  >
-                    {tag}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Category Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 whitespace-nowrap flex-shrink-0 bg-transparent"
-                >
-                  <Filter className="h-4 w-4" />
-                  Categories
-                  {selectedCategories.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                      {selectedCategories.length}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel>Filter by Category</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {categories.map((category) => (
-                  <DropdownMenuCheckboxItem
-                    key={category}
-                    checked={selectedCategories.includes(category)}
-                    onCheckedChange={(checked) => {
-                      setSelectedCategories((prev) =>
-                        checked
-                          ? [...prev, category]
-                          : prev.filter((c) => c !== category)
-                      );
-                    }}
-                  >
-                    {category}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {hasActiveFilters && (
+          {!isMobile && (
+            <div className="hidden sm:flex items-center gap-1 rounded-sm border bg-background p-1">
               <Button
-                variant="ghost"
+                variant={view === "month" ? "secondary" : "ghost"}
                 size="sm"
-                onClick={clearFilters}
-                className="gap-2 whitespace-nowrap flex-shrink-0"
+                onClick={() => setView("month")}
+                className="h-7 px-2 text-xs md:h-8 md:px-3 md:text-sm"
               >
-                <X className="h-4 w-4" />
-                Clear Filters
+                <CalendarIcon className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="ml-1">Month</span>
               </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Desktop: Original layout */}
-        <div className="hidden sm:flex items-center gap-2">
-          {/* Color Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
               <Button
-                variant="outline"
+                variant={view === "week" ? "secondary" : "ghost"}
                 size="sm"
-                className="gap-2 bg-transparent"
+                onClick={() => setView("week")}
+                className="h-7 px-2 text-xs md:h-8 md:px-3 md:text-sm"
               >
-                <Filter className="h-4 w-4" />
-                Colors
-                {selectedColors.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1">
-                    {selectedColors.length}
-                  </Badge>
-                )}
+                <Grid3x3 className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="ml-1">Week</span>
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Filter by Color</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {colors.map((color) => (
-                <DropdownMenuCheckboxItem
-                  key={color.value}
-                  checked={selectedColors.includes(color.value)}
-                  onCheckedChange={(checked) => {
-                    setSelectedColors((prev) =>
-                      checked
-                        ? [...prev, color.value]
-                        : prev.filter((c) => c !== color.value)
-                    );
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={cn("h-3 w-3 rounded", color.bg)} />
-                    {color.name}
-                  </div>
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Tag Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
               <Button
-                variant="outline"
+                variant={view === "day" ? "secondary" : "ghost"}
                 size="sm"
-                className="gap-2 bg-transparent"
+                onClick={() => setView("day")}
+                className="h-7 px-2 text-xs md:h-8 md:px-3 md:text-sm"
               >
-                <Filter className="h-4 w-4" />
-                Tags
-                {selectedTags.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1">
-                    {selectedTags.length}
-                  </Badge>
-                )}
+                <Clock className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="ml-1">Day</span>
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Filter by Tag</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {availableTags.map((tag) => (
-                <DropdownMenuCheckboxItem
-                  key={tag}
-                  checked={selectedTags.includes(tag)}
-                  onCheckedChange={(checked) => {
-                    setSelectedTags((prev) =>
-                      checked ? [...prev, tag] : prev.filter((t) => t !== tag)
-                    );
-                  }}
-                >
-                  {tag}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Category Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
               <Button
-                variant="outline"
+                variant={view === "list" ? "secondary" : "ghost"}
                 size="sm"
-                className="gap-2 bg-transparent"
+                onClick={() => setView("list")}
+                className="h-7 px-2 text-xs md:h-8 md:px-3 md:text-sm"
               >
-                <Filter className="h-4 w-4" />
-                Categories
-                {selectedCategories.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1">
-                    {selectedCategories.length}
-                  </Badge>
-                )}
+                <List className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="ml-1">List</span>
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Filter by Category</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {categories.map((category) => (
-                <DropdownMenuCheckboxItem
-                  key={category}
-                  checked={selectedCategories.includes(category)}
-                  onCheckedChange={(checked) => {
-                    setSelectedCategories((prev) =>
-                      checked
-                        ? [...prev, category]
-                        : prev.filter((c) => c !== category)
-                    );
-                  }}
-                >
-                  {category}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="gap-2"
-            >
-              <X className="h-4 w-4" />
-              Clear
-            </Button>
+            </div>
           )}
         </div>
       </div>
 
-      {hasActiveFilters && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Active filters:</span>
-          {selectedColors.map((colorValue) => {
-            const color = getColorClasses(colorValue);
-            return (
-              <Badge key={colorValue} variant="secondary" className="gap-1">
-                <div className={cn("h-2 w-2 rounded-full", color.bg)} />
-                {color.name}
+      <div className="flex flex-col gap-3">
+        {/* Search and Filters - Mobile layout */}
+        <div className={cn(
+          "flex flex-col gap-3",
+          isMobile ? "" : "flex-row items-center gap-3"
+        )}>
+          <div className="relative flex-1">
+            <div className="relative">
+              <SearchIcon className="absolute left-3 top-1/2 h-3 w-3 md:h-4 md:w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search appointments..."
+                className={cn(
+                  "pl-8 w-full",
+                  isMobile ? "h-8 text-xs" : "h-9 md:h-10 text-sm md:text-base"
+                )}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Mobile Filter Toggle */}
+          {isMobile && (
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-3 px-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 whitespace-nowrap flex-shrink-0 bg-transparent text-xs h-7"
+                  >
+                    <Filter className="h-3 w-3" />
+                    Filters
+                    {(selectedColors.length > 0 || selectedTags.length > 0 || selectedCategories.length > 0) && (
+                      <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                        {selectedColors.length + selectedTags.length + selectedCategories.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48 max-h-[60vh] overflow-y-auto">
+                  <DropdownMenuLabel className="text-xs">Filter Options</DropdownMenuLabel>
+                  
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-xs text-muted-foreground">Colors</div>
+                  {colors.map((color) => (
+                    <DropdownMenuCheckboxItem
+                      key={color.value}
+                      checked={selectedColors.includes(color.value)}
+                      onCheckedChange={(checked) => {
+                        setSelectedColors((prev) =>
+                          checked
+                            ? [...prev, color.value]
+                            : prev.filter((c) => c !== color.value)
+                        );
+                      }}
+                      className="text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn("h-3 w-3 rounded", color.bg)} />
+                        {color.name}
+                      </div>
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-xs text-muted-foreground">Categories</div>
+                  {categories.map((category) => (
+                    <DropdownMenuCheckboxItem
+                      key={category}
+                      checked={selectedCategories.includes(category)}
+                      onCheckedChange={(checked) => {
+                        setSelectedCategories((prev) =>
+                          checked
+                            ? [...prev, category]
+                            : prev.filter((c) => c !== category)
+                        );
+                      }}
+                      className="text-xs"
+                    >
+                      {category}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-xs text-muted-foreground">Tags</div>
+                  {availableTags.slice(0, 8).map((tag) => (
+                    <DropdownMenuCheckboxItem
+                      key={tag}
+                      checked={selectedTags.includes(tag)}
+                      onCheckedChange={(checked) => {
+                        setSelectedTags((prev) =>
+                          checked ? [...prev, tag] : prev.filter((t) => t !== tag)
+                        );
+                      }}
+                      className="text-xs"
+                    >
+                      {tag}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  
+                  {hasActiveFilters && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <div className="p-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearFilters}
+                          className="w-full text-xs h-7"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Clear All Filters
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+
+          {/* Desktop Filter Buttons */}
+          {!isMobile && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 bg-transparent text-xs h-8 md:h-9 md:text-sm"
+                  >
+                    <Filter className="h-3 w-3 md:h-4 md:w-4" />
+                    Filters
+                    {(selectedColors.length > 0 || selectedTags.length > 0 || selectedCategories.length > 0) && (
+                      <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">
+                        {selectedColors.length + selectedTags.length + selectedCategories.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="text-sm">Filter Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  
+                  <div className="px-2 py-1 text-xs text-muted-foreground">Colors</div>
+                  {colors.map((color) => (
+                    <DropdownMenuCheckboxItem
+                      key={color.value}
+                      checked={selectedColors.includes(color.value)}
+                      onCheckedChange={(checked) => {
+                        setSelectedColors((prev) =>
+                          checked
+                            ? [...prev, color.value]
+                            : prev.filter((c) => c !== color.value)
+                        );
+                      }}
+                      className="text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn("h-3 w-3 rounded", color.bg)} />
+                        {color.name}
+                      </div>
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-xs text-muted-foreground">Categories</div>
+                  {categories.map((category) => (
+                    <DropdownMenuCheckboxItem
+                      key={category}
+                      checked={selectedCategories.includes(category)}
+                      onCheckedChange={(checked) => {
+                        setSelectedCategories((prev) =>
+                          checked
+                            ? [...prev, category]
+                            : prev.filter((c) => c !== category)
+                        );
+                      }}
+                      className="text-sm"
+                    >
+                      {category}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-xs text-muted-foreground">Tags</div>
+                  {availableTags.slice(0, 10).map((tag) => (
+                    <DropdownMenuCheckboxItem
+                      key={tag}
+                      checked={selectedTags.includes(tag)}
+                      onCheckedChange={(checked) => {
+                        setSelectedTags((prev) =>
+                          checked ? [...prev, tag] : prev.filter((t) => t !== tag)
+                        );
+                      }}
+                      className="text-sm"
+                    >
+                      {tag}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="gap-1 text-xs h-8 md:h-9 md:text-sm"
+                >
+                  <X className="h-3 w-3 md:h-4 md:w-4" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Active Filters Display */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-1 md:gap-2">
+            <span className="text-xs md:text-sm text-muted-foreground">Active:</span>
+            {selectedColors.map((colorValue) => {
+              const color = getColorClasses(colorValue);
+              return (
+                <Badge key={colorValue} variant="secondary" className="gap-1 text-xs h-5">
+                  <div className={cn("h-2 w-2 rounded-full", color.bg)} />
+                  {color.name}
+                  <button
+                    onClick={() =>
+                      setSelectedColors((prev) =>
+                        prev.filter((c) => c !== colorValue)
+                      )
+                    }
+                    className="ml-1 hover:text-foreground"
+                  >
+                    <X className="h-2 w-2 md:h-3 md:w-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+            {selectedTags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="gap-1 text-xs h-5">
+                {tag}
                 <button
                   onClick={() =>
-                    setSelectedColors((prev) =>
-                      prev.filter((c) => c !== colorValue)
+                    setSelectedTags((prev) => prev.filter((t) => t !== tag))
+                  }
+                  className="ml-1 hover:text-foreground"
+                >
+                  <X className="h-2 w-2 md:h-3 md:w-3" />
+                </button>
+              </Badge>
+            ))}
+            {selectedCategories.map((category) => (
+              <Badge key={category} variant="secondary" className="gap-1 text-xs h-5">
+                {category}
+                <button
+                  onClick={() =>
+                    setSelectedCategories((prev) =>
+                      prev.filter((c) => c !== category)
                     )
                   }
                   className="ml-1 hover:text-foreground"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-2 w-2 md:h-3 md:w-3" />
                 </button>
               </Badge>
-            );
-          })}
-          {selectedTags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="gap-1">
-              {tag}
-              <button
-                onClick={() =>
-                  setSelectedTags((prev) => prev.filter((t) => t !== tag))
-                }
-                className="ml-1 hover:text-foreground"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-          {selectedCategories.map((category) => (
-            <Badge key={category} variant="secondary" className="gap-1">
-              {category}
-              <button
-                onClick={() =>
-                  setSelectedCategories((prev) =>
-                    prev.filter((c) => c !== category)
-                  )
-                }
-                className="ml-1 hover:text-foreground"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Calendar Views - Pass filteredEvents instead of events */}
       {view === "month" && (
@@ -783,6 +725,7 @@ export function EnhancedCalendar({
           onDragEnd={handleDragEnd}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
+          isMobile={isMobile}
         />
       )}
 
@@ -798,6 +741,7 @@ export function EnhancedCalendar({
           onDragEnd={handleDragEnd}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
+          isMobile={isMobile}
         />
       )}
 
@@ -813,6 +757,7 @@ export function EnhancedCalendar({
           onDragEnd={handleDragEnd}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
+          isMobile={isMobile}
         />
       )}
 
@@ -824,26 +769,30 @@ export function EnhancedCalendar({
             setIsDialogOpen(true);
           }}
           getColorClasses={getColorClasses}
+          isMobile={isMobile}
         />
       )}
 
       {/* Event Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className={cn(
+          "max-h-[90vh] overflow-y-auto",
+          isMobile ? "max-w-[95vw] p-4" : "max-w-md"
+        )}>
           <DialogHeader>
-            <DialogTitle>
-              {isCreating ? "Create Event" : "Event Details"}
+            <DialogTitle className={isMobile ? "text-lg" : "text-xl"}>
+              {isCreating ? "Create Appointment" : "Appointment Details"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className={isMobile ? "text-sm" : ""}>
               {isCreating
-                ? "Add a new event to your calendar"
-                : "View and edit event details"}
+                ? "Add a new appointment"
+                : "View and edit appointment details"}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title" className={isMobile ? "text-sm" : ""}>Title</Label>
               <Input
                 id="title"
                 value={isCreating ? newEvent.title : selectedEvent?.title}
@@ -857,12 +806,13 @@ export function EnhancedCalendar({
                         prev ? { ...prev, title: e.target.value } : null
                       )
                 }
-                placeholder="Event title"
+                placeholder="Appointment title"
+                className={isMobile ? "text-sm" : ""}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description" className={isMobile ? "text-sm" : ""}>Description</Label>
               <Textarea
                 id="description"
                 value={
@@ -878,14 +828,18 @@ export function EnhancedCalendar({
                         prev ? { ...prev, description: e.target.value } : null
                       )
                 }
-                placeholder="Event description"
+                placeholder="Appointment description"
                 rows={3}
+                className={isMobile ? "text-sm" : ""}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={cn(
+              "grid gap-3 md:gap-4",
+              isMobile ? "grid-cols-1" : "grid-cols-2"
+            )}>
               <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time</Label>
+                <Label htmlFor="startTime" className={isMobile ? "text-sm" : ""}>Start Time</Label>
                 <Input
                   id="startTime"
                   type="datetime-local"
@@ -916,11 +870,12 @@ export function EnhancedCalendar({
                           prev ? { ...prev, startTime: date } : null
                         );
                   }}
+                  className={isMobile ? "text-sm" : ""}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="endTime">End Time</Label>
+                <Label htmlFor="endTime" className={isMobile ? "text-sm" : ""}>End Time</Label>
                 <Input
                   id="endTime"
                   type="datetime-local"
@@ -951,13 +906,17 @@ export function EnhancedCalendar({
                           prev ? { ...prev, endTime: date } : null
                         );
                   }}
+                  className={isMobile ? "text-sm" : ""}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={cn(
+              "grid gap-3 md:gap-4",
+              isMobile ? "grid-cols-1" : "grid-cols-2"
+            )}>
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="category" className={isMobile ? "text-sm" : ""}>Category</Label>
                 <Select
                   value={
                     isCreating ? newEvent.category : selectedEvent?.category
@@ -970,12 +929,12 @@ export function EnhancedCalendar({
                         )
                   }
                 >
-                  <SelectTrigger id="category">
+                  <SelectTrigger id="category" className={isMobile ? "text-sm h-9" : ""}>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
+                      <SelectItem key={cat} value={cat} className={isMobile ? "text-sm" : ""}>
                         {cat}
                       </SelectItem>
                     ))}
@@ -984,7 +943,7 @@ export function EnhancedCalendar({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="color">Color</Label>
+                <Label htmlFor="color" className={isMobile ? "text-sm" : ""}>Color</Label>
                 <Select
                   value={isCreating ? newEvent.color : selectedEvent?.color}
                   onValueChange={(value) =>
@@ -995,12 +954,12 @@ export function EnhancedCalendar({
                         )
                   }
                 >
-                  <SelectTrigger id="color">
+                  <SelectTrigger id="color" className={isMobile ? "text-sm h-9" : ""}>
                     <SelectValue placeholder="Select color" />
                   </SelectTrigger>
                   <SelectContent>
                     {colors.map((color) => (
-                      <SelectItem key={color.value} value={color.value}>
+                      <SelectItem key={color.value} value={color.value} className={isMobile ? "text-sm" : ""}>
                         <div className="flex items-center gap-2">
                           <div className={cn("h-4 w-4 rounded", color.bg)} />
                           {color.name}
@@ -1013,9 +972,9 @@ export function EnhancedCalendar({
             </div>
 
             <div className="space-y-2">
-              <Label>Tags</Label>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => {
+              <Label className={isMobile ? "text-sm" : ""}>Tags</Label>
+              <div className="flex flex-wrap gap-1 md:gap-2">
+                {availableTags.slice(0, isMobile ? 6 : 8).map((tag) => {
                   const isSelected = isCreating
                     ? newEvent.tags?.includes(tag)
                     : selectedEvent?.tags?.includes(tag);
@@ -1023,7 +982,10 @@ export function EnhancedCalendar({
                     <Badge
                       key={tag}
                       variant={isSelected ? "default" : "outline"}
-                      className="cursor-pointer transition-all hover:scale-105"
+                      className={cn(
+                        "cursor-pointer transition-all hover:scale-105",
+                        isMobile ? "text-xs h-6" : "text-sm"
+                      )}
                       onClick={() => toggleTag(tag, isCreating)}
                     >
                       {tag}
@@ -1034,13 +996,15 @@ export function EnhancedCalendar({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className={isMobile ? "flex-col gap-2" : ""}>
             {!isCreating && (
               <Button
                 variant="destructive"
                 onClick={() =>
                   selectedEvent && handleDeleteEvent(selectedEvent.id)
                 }
+                size={isMobile ? "sm" : "default"}
+                className={isMobile ? "w-full" : ""}
               >
                 Delete
               </Button>
@@ -1052,11 +1016,15 @@ export function EnhancedCalendar({
                 setIsCreating(false);
                 setSelectedEvent(null);
               }}
+              size={isMobile ? "sm" : "default"}
+              className={isMobile ? "w-full" : ""}
             >
               Cancel
             </Button>
             <Button
               onClick={isCreating ? handleCreateEvent : handleUpdateEvent}
+              size={isMobile ? "sm" : "default"}
+              className={isMobile ? "w-full" : ""}
             >
               {isCreating ? "Create" : "Save"}
             </Button>
@@ -1075,6 +1043,7 @@ function EventCard({
   onDragEnd,
   getColorClasses,
   variant = "default",
+  isMobile = false,
 }: {
   event: Event;
   onEventClick: (event: Event) => void;
@@ -1082,6 +1051,7 @@ function EventCard({
   onDragEnd: () => void;
   getColorClasses: (color: string) => { bg: string; text: string };
   variant?: "default" | "compact" | "detailed";
+  isMobile?: boolean;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const colorClasses = getColorClasses(event.color);
@@ -1116,15 +1086,16 @@ function EventCard({
       >
         <div
           className={cn(
-            "rounded-sm px-1.5 py-0.5 text-xs font-medium transition-all duration-300",
+            "rounded-sm px-1 py-0.5 text-xs font-medium transition-all duration-300 truncate",
             colorClasses.bg,
-            "text-white truncate animate-in fade-in slide-in-from-top-1",
+            "text-white animate-in fade-in slide-in-from-top-1",
             isHovered && "scale-105 shadow-lg z-10"
           )}
+          title={event.title}
         >
-          {event.title}
+          {isMobile ? event.title.split(' - ')[0] : event.title}
         </div>
-        {isHovered && (
+        {isHovered && !isMobile && (
           <div className="absolute left-0 top-full z-50 mt-1 w-64 animate-in fade-in slide-in-from-top-2 duration-200">
             <Card className="border-2 p-3 shadow-xl">
               <div className="space-y-2">
@@ -1157,7 +1128,7 @@ function EventCard({
                       {event.category}
                     </Badge>
                   )}
-                  {event.tags?.map((tag) => (
+                  {event.tags?.slice(0, 2).map((tag) => (
                     <Badge
                       key={tag}
                       variant="outline"
@@ -1185,36 +1156,22 @@ function EventCard({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={cn(
-          "cursor-pointer rounded-sm p-3 transition-all duration-300",
+          "cursor-pointer rounded-sm p-2 transition-all duration-300",
           colorClasses.bg,
           "text-white animate-in fade-in slide-in-from-left-2",
           isHovered && "scale-[1.03] shadow-2xl"
         )}
       >
-        <div className="font-semibold">{event.title}</div>
-        {event.description && (
-          <div className="mt-1 text-sm opacity-90 line-clamp-2">
+        <div className="font-semibold text-sm truncate">{event.title}</div>
+        {event.description && !isMobile && (
+          <div className="mt-1 text-xs opacity-90 line-clamp-1">
             {event.description}
           </div>
         )}
-        <div className="mt-2 flex items-center gap-2 text-xs opacity-80">
-          <Clock className="h-3 w-3" />
-          {formatTime(event.startTime)} - {formatTime(event.endTime)}
+        <div className="mt-1 flex items-center gap-1 text-[10px] opacity-80">
+          <Clock className="h-2.5 w-2.5" />
+          {formatTime(event.startTime)}
         </div>
-        {isHovered && (
-          <div className="mt-2 flex flex-wrap gap-1 animate-in fade-in slide-in-from-bottom-1 duration-200">
-            {event.category && (
-              <Badge variant="secondary" className="text-xs">
-                {event.category}
-              </Badge>
-            )}
-            {event.tags?.map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs text-white">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        )}
       </div>
     );
   }
@@ -1231,20 +1188,21 @@ function EventCard({
     >
       <div
         className={cn(
-          "cursor-pointer rounded-sm px-2 py-1 text-xs font-medium transition-all duration-300",
+          "cursor-pointer rounded-sm px-1.5 py-1 text-xs font-medium transition-all duration-300 truncate",
           colorClasses.bg,
           "text-white animate-in fade-in slide-in-from-left-1",
           isHovered && "scale-105 shadow-lg z-10"
         )}
+        title={event.title}
       >
-        <div className="truncate">{event.title}</div>
+        {isMobile ? event.title.split(' - ')[0] : event.title}
       </div>
-      {isHovered && (
+      {isHovered && !isMobile && (
         <div className="absolute left-0 top-full z-50 mt-1 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
           <Card className="border-2 p-4 shadow-xs">
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-2">
-                <h4 className="font-semibold leading-tight">{event.title}</h4>
+                <h4 className="font-semibold leading-tight text-sm">{event.title}</h4>
                 <div
                   className={cn(
                     "h-4 w-4 rounded-full flex-shrink-0",
@@ -1271,7 +1229,7 @@ function EventCard({
                       {event.category}
                     </Badge>
                   )}
-                  {event.tags?.map((tag) => (
+                  {event.tags?.slice(0, 3).map((tag) => (
                     <Badge key={tag} variant="outline" className="text-xs">
                       {tag}
                     </Badge>
@@ -1295,6 +1253,7 @@ function MonthView({
   onDragEnd,
   onDrop,
   getColorClasses,
+  isMobile = false,
 }: {
   currentDate: Date;
   events: Event[];
@@ -1303,13 +1262,13 @@ function MonthView({
   onDragEnd: () => void;
   onDrop: (date: Date) => void;
   getColorClasses: (color: string) => { bg: string; text: string };
+  isMobile?: boolean;
 }) {
   const firstDayOfMonth = new Date(
     currentDate.getFullYear(),
     currentDate.getMonth(),
     1
   );
-  // const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
   const startDate = new Date(firstDayOfMonth);
   startDate.setDate(startDate.getDate() - startDate.getDay());
 
@@ -1334,14 +1293,13 @@ function MonthView({
 
   return (
     <Card className="overflow-hidden p-0 shadow-none rounded-sm">
-      <div className="grid grid-cols-7 border-b h-12 mb-0">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+      <div className="grid grid-cols-7 border-b h-8 md:h-10">
+        {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
           <div
             key={day}
-            className="border-r p-2 text-center text-md font-medium last:border-r-0 sm:text-md -mb-6"
+            className="border-r p-1 text-center text-xs font-medium last:border-r-0 md:text-sm "
           >
-            <span className="hidden sm:inline">{day}</span>
-            <span className="sm:hidden">{day.charAt(0)}</span>
+            {day}
           </div>
         ))}
       </div>
@@ -1355,7 +1313,7 @@ function MonthView({
             <div
               key={index}
               className={cn(
-                "min-h-50 border-b border-r p-0 transition-colors last:border-r-0 sm:min-h-45 sm:p-2",
+                "min-h-16 sm:min-h-20 border-b border-r p-1 transition-colors last:border-r-0 md:min-h-24 md:p-1.5 ",
                 !isCurrentMonth && "bg-muted/30",
                 "hover:bg-accent/50"
               )}
@@ -1364,14 +1322,14 @@ function MonthView({
             >
               <div
                 className={cn(
-                  "mb-2 flex h-5 w-5 items-center justify-center rounded-full text-xs sm:h-6 sm:w-6 sm:text-sm",
+                  "mb-1 flex h-5 w-5 items-center justify-center rounded-full text-xs md:h-6 md:w-6 md:text-sm",
                   isToday && "bg-primary text-primary-foreground font-semibold"
                 )}
               >
                 {day.getDate()}
               </div>
-              <div className="space-y-1">
-                {dayEvents.slice(0, 3).map((event) => (
+              <div className="space-y-0.5 md:space-y-1">
+                {dayEvents.slice(0, isMobile ? 2 : 3).map((event) => (
                   <EventCard
                     key={event.id}
                     event={event}
@@ -1380,11 +1338,12 @@ function MonthView({
                     onDragEnd={onDragEnd}
                     getColorClasses={getColorClasses}
                     variant="compact"
+                    isMobile={isMobile}
                   />
                 ))}
-                {dayEvents.length > 3 && (
-                  <div className="text-[10px] text-muted-foreground sm:text-xs">
-                    +{dayEvents.length - 3} more
+                {dayEvents.length > (isMobile ? 2 : 3) && (
+                  <div className="text-[9px] text-muted-foreground md:text-xs">
+                    +{dayEvents.length - (isMobile ? 2 : 3)} more
                   </div>
                 )}
               </div>
@@ -1405,6 +1364,7 @@ function WeekView({
   onDragEnd,
   onDrop,
   getColorClasses,
+  isMobile = false,
 }: {
   currentDate: Date;
   events: Event[];
@@ -1413,9 +1373,10 @@ function WeekView({
   onDragEnd: () => void;
   onDrop: (date: Date, hour: number) => void;
   getColorClasses: (color: string) => { bg: string; text: string };
+  isMobile?: boolean;
 }) {
   const startOfWeek = new Date(currentDate);
-  startOfWeek.setDate(currentDate.getDay());
+  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const day = new Date(startOfWeek);
@@ -1423,7 +1384,7 @@ function WeekView({
     return day;
   });
 
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM to 7 PM
 
   const getEventsForDayAndHour = (date: Date, hour: number) => {
     return events.filter((event) => {
@@ -1441,49 +1402,46 @@ function WeekView({
   return (
     <Card className="overflow-auto shadow-none rounded-sm p-0">
       <div className="grid grid-cols-8 border-b">
-        <div className="border-r p-2 text-center text-xs font-medium sm:text-sm">
+        <div className="border-r p-1 text-center text-xs font-medium md:p-2 md:text-sm">
           Time
         </div>
         {weekDays.map((day) => (
           <div
             key={day.toISOString()}
-            className="border-r p-2 text-center text-xs font-medium last:border-r-0 sm:text-sm"
+            className="border-r p-1 text-center text-xs font-medium last:border-r-0 md:p-2 md:text-sm"
           >
-            <div className="hidden sm:block">
+            <div className="hidden sm:block text-xs md:text-sm">
               {day.toLocaleDateString("en-US", { weekday: "short" })}
             </div>
-            <div className="sm:hidden">
+            <div className="sm:hidden text-[10px]">
               {day.toLocaleDateString("en-US", { weekday: "narrow" })}
             </div>
-            <div className="text-[10px] text-muted-foreground sm:text-xs">
-              {day.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
+            <div className="text-[9px] text-muted-foreground md:text-xs">
+              {day.getDate()}
             </div>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-8 -mt-6">
+      <div className="grid grid-cols-8">
         {hours.map((hour) => (
           <>
             <div
               key={`time-${hour}`}
-              className="border-b border-r p-1 text-[10px] text-muted-foreground sm:p-2 sm:text-xs"
+              className="border-b border-r p-1 text-[10px] text-muted-foreground md:p-2 md:text-xs"
             >
-              {hour.toString().padStart(2, "0")}:00
+              {hour > 12 ? hour - 12 : hour}:00 {hour >= 12 ? 'PM' : 'AM'}
             </div>
             {weekDays.map((day) => {
               const dayEvents = getEventsForDayAndHour(day, hour);
               return (
                 <div
                   key={`${day.toISOString()}-${hour}`}
-                  className="min-h-12 border-b border-r p-0.5 transition-colors hover:bg-accent/50 last:border-r-0 sm:min-h-16 sm:p-1"
+                  className="min-h-8 border-b border-r p-0.5 transition-colors hover:bg-accent/50 last:border-r-0 sm:min-h-12 md:min-h-14 md:p-1"
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => onDrop(day, hour)}
                 >
-                  <div className="space-y-1">
-                    {dayEvents.map((event) => (
+                  <div className="space-y-0.5 md:space-y-1">
+                    {dayEvents.slice(0, 2).map((event) => (
                       <EventCard
                         key={event.id}
                         event={event}
@@ -1492,6 +1450,7 @@ function WeekView({
                         onDragEnd={onDragEnd}
                         getColorClasses={getColorClasses}
                         variant="default"
+                        isMobile={isMobile}
                       />
                     ))}
                   </div>
@@ -1514,6 +1473,7 @@ function DayView({
   onDragEnd,
   onDrop,
   getColorClasses,
+  isMobile = false,
 }: {
   currentDate: Date;
   events: Event[];
@@ -1522,8 +1482,9 @@ function DayView({
   onDragEnd: () => void;
   onDrop: (date: Date, hour: number) => void;
   getColorClasses: (color: string) => { bg: string; text: string };
+  isMobile?: boolean;
 }) {
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM to 7 PM
 
   const getEventsForHour = (hour: number) => {
     return events.filter((event) => {
@@ -1550,11 +1511,14 @@ function DayView({
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(currentDate, hour)}
             >
-              <div className="w-14 flex-shrink-0 border-r p-2 text-xs text-muted-foreground sm:w-20 sm:p-3 sm:text-sm">
-                {hour.toString().padStart(2, "0")}:00
+              <div className="w-12 flex-shrink-0 border-r p-1 text-[10px] text-muted-foreground md:w-16 md:p-2 md:text-sm">
+                {hour > 12 ? hour - 12 : hour}:00
+                <div className="text-[8px] md:text-[10px]">
+                  {hour >= 12 ? 'PM' : 'AM'}
+                </div>
               </div>
-              <div className="min-h-16 flex-1 p-1 transition-colors hover:bg-accent/50 sm:min-h-20 sm:p-2">
-                <div className="space-y-2">
+              <div className="min-h-12 flex-1 p-0.5 transition-colors hover:bg-accent/50 md:min-h-16 md:p-2">
+                <div className="space-y-1 md:space-y-2">
                   {hourEvents.map((event) => (
                     <EventCard
                       key={event.id}
@@ -1564,6 +1528,7 @@ function DayView({
                       onDragEnd={onDragEnd}
                       getColorClasses={getColorClasses}
                       variant="detailed"
+                      isMobile={isMobile}
                     />
                   ))}
                 </div>
@@ -1581,10 +1546,12 @@ function ListView({
   events,
   onEventClick,
   getColorClasses,
+  isMobile = false,
 }: {
   events: Event[];
   onEventClick: (event: Event) => void;
   getColorClasses: (color: string) => { bg: string; text: string };
+  isMobile?: boolean;
 }) {
   const sortedEvents = [...events].sort(
     (a, b) => a.startTime.getTime() - b.startTime.getTime()
@@ -1592,9 +1559,8 @@ function ListView({
 
   const groupedEvents = sortedEvents.reduce((acc, event) => {
     const dateKey = event.startTime.toLocaleDateString("en-US", {
-      weekday: "long",
       year: "numeric",
-      month: "long",
+      month: "short",
       day: "numeric",
     });
     if (!acc[dateKey]) {
@@ -1605,10 +1571,10 @@ function ListView({
   }, {} as Record<string, Event[]>);
 
   return (
-    <Card className="p-3 sm:p-4 shadow-none rounded-sm">
-      <div className="space-y-6">
+    <Card className="p-2 sm:p-3 md:p-4 shadow-none rounded-sm">
+      <div className="space-y-4 md:space-y-6">
         {Object.entries(groupedEvents).map(([date, dateEvents]) => (
-          <div key={date} className="space-y-3">
+          <div key={date} className="space-y-2 md:space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground sm:text-sm">
               {date}
             </h3>
@@ -1619,55 +1585,59 @@ function ListView({
                   <div
                     key={event.id}
                     onClick={() => onEventClick(event)}
-                    className="group cursor-pointer rounded-sm border bg-card p-3 transition-all hover:shadow-md hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2 duration-300 sm:p-4"
+                    className="group cursor-pointer rounded-sm border bg-card p-2 transition-all hover:shadow-sm hover:scale-[1.005] animate-in fade-in slide-in-from-bottom-2 duration-300 sm:p-3 md:p-4"
                   >
                     <div className="flex items-start gap-2 sm:gap-3">
                       <div
                         className={cn(
-                          "mt-1 h-2.5 w-2.5 rounded-full sm:h-3 sm:w-3",
+                          "mt-1 h-2 w-2 rounded-full sm:h-2.5 sm:w-2.5",
                           colorClasses.bg
                         )}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
-                            <h4 className="font-semibold text-sm group-hover:text-primary transition-colors sm:text-base truncate">
+                            <h4 className="font-semibold text-sm group-hover:text-primary transition-colors md:text-base truncate">
                               {event.title}
                             </h4>
-                            {event.description && (
-                              <p className="mt-1 text-xs text-muted-foreground sm:text-sm line-clamp-2">
+                            {event.description && !isMobile && (
+                              <p className="mt-1 text-xs text-muted-foreground sm:text-sm line-clamp-1">
                                 {event.description}
                               </p>
                             )}
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {event.category && (
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge variant="secondary" className="text-xs h-5">
                                 {event.category}
                               </Badge>
                             )}
                           </div>
                         </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground sm:gap-4 sm:text-xs">
+                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground sm:gap-2 sm:text-xs">
                           <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
+                            <Clock className="h-2.5 w-2.5 md:h-3 md:w-3" />
                             {event.startTime.toLocaleTimeString("en-US", {
                               hour: "2-digit",
                               minute: "2-digit",
-                            })}{" "}
-                            -{" "}
-                            {event.endTime.toLocaleTimeString("en-US", {
-                              hour: "2-digit",
-                              minute: "2-digit",
                             })}
+                            {!isMobile && (
+                              <>
+                                {" "}-{" "}
+                                {event.endTime.toLocaleTimeString("en-US", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </>
+                            )}
                           </div>
-                          {event.tags && event.tags.length > 0 && (
+                          {event.tags && event.tags.length > 0 && !isMobile && (
                             <div className="flex flex-wrap gap-1">
-                              {event.tags.map((tag) => (
+                              {event.tags.slice(0, 2).map((tag) => (
                                 <Badge
                                   key={tag}
                                   variant="outline"
-                                  className="text-[10px] h-4 sm:text-xs sm:h-5"
+                                  className="text-[10px] h-4"
                                 >
                                   {tag}
                                 </Badge>
@@ -1684,8 +1654,8 @@ function ListView({
           </div>
         ))}
         {sortedEvents.length === 0 && (
-          <div className="py-12 text-center text-sm text-muted-foreground sm:text-base">
-            No events found
+          <div className="py-8 text-center text-sm text-muted-foreground md:py-12 md:text-base">
+            No appointments found
           </div>
         )}
       </div>

@@ -23,7 +23,8 @@ import {
   AlertCircle,
   Receipt,
   Mail,
-  TrendingDown
+  TrendingDown,
+  X
 } from "lucide-react"
 
 import { 
@@ -37,6 +38,7 @@ import { SectionCards, type CardData } from "@/components/section-cards"
 import { cn } from "@/lib/utils"
 import { DataTable, type TableAction, type TableField } from "@/components/data-table"
 import { AddPaymentSheet } from "@/components/add-payment-sheet"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // Define payment data type
 interface Payment {
@@ -243,15 +245,15 @@ const mockPayments: Payment[] = [
   }
 ]
 
-// Table fields configuration
+// Desktop table fields configuration
 const paymentFields: TableField<Payment>[] = [
   {
     key: "paymentNumber",
     header: "Payment #",
     cell: (value) => (
-      <div className="flex items-center gap-2">
-        <span className="font-medium">{value as string}</span>
-      </div>
+      <span className="font-medium text-sm md:text-base">
+        {value as string}
+      </span>
     ),
     width: "140px",
     enableSorting: true,
@@ -260,12 +262,14 @@ const paymentFields: TableField<Payment>[] = [
     key: "invoiceInfo",
     header: "Invoice",
     cell: (_, row) => (
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="font-medium">{row.invoiceNumber}</span>
+      <div className="space-y-1 min-w-0">
+        <div className="font-medium text-sm md:text-base">{row.invoiceNumber}</div>
+        <div className="font-medium text-sm md:text-base truncate">{row.clientName}</div>
+        <div className="hidden md:flex items-center gap-2 text-xs md:text-sm text-muted-foreground truncate">
+          <Mail className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{row.clientEmail}</span>
         </div>
-        <div className="font-medium">{row.clientName}</div>
-        <div className="text-sm text-muted-foreground">
+        <div className="md:hidden text-xs text-muted-foreground truncate">
           {row.clientEmail}
         </div>
       </div>
@@ -275,20 +279,14 @@ const paymentFields: TableField<Payment>[] = [
   },
   {
     key: "amountInfo",
-    header: "Amount Details",
+    header: "Amount",
     cell: (_, row) => (
       <div className="space-y-1">
-        <div className="font-medium">
-          ${row.totalAmount.toLocaleString()}
-        </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="font-medium text-sm md:text-base">${row.totalAmount.toLocaleString()}</div>
+        <div className="text-xs md:text-sm text-muted-foreground hidden md:block">
           Amount: ${row.amount.toLocaleString()}
+          {row.fees > 0 && ` + $${row.fees} fees`}
         </div>
-        {row.fees > 0 && (
-          <div className="text-sm text-muted-foreground">
-            Fees: ${row.fees.toLocaleString()}
-          </div>
-        )}
       </div>
     ),
     width: "150px",
@@ -296,36 +294,34 @@ const paymentFields: TableField<Payment>[] = [
   },
   {
     key: "dates",
-    header: "Payment Dates",
+    header: "Dates",
     cell: (_, row) => (
-      <div className="space-y-1">
+      <div className="space-y-1 hidden md:block">
         <div className="flex items-center gap-2 text-sm">
-          <Calendar className="h-3 w-3 text-muted-foreground" />
-          <span>Paid: {new Date(row.paymentDate).toLocaleDateString()}</span>
+          <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">Paid: {new Date(row.paymentDate).toLocaleDateString()}</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <Calendar className="h-3 w-3 text-muted-foreground" />
-          <span>Processed: {new Date(row.processedDate).toLocaleDateString()}</span>
+          <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">Processed: {new Date(row.processedDate).toLocaleDateString()}</span>
         </div>
       </div>
     ),
-    width: "200px",
+    width: "180px",
     enableSorting: true,
   },
   {
     key: "paymentMethod",
-    header: "Payment Method",
+    header: "Method",
     cell: (value) => {
       const method = value as string
       return (
-        <div className="flex flex-col gap-1">
-          <Badge variant="outline" className={cn("gap-2 px-3 rounded-sm w-fit")}>
-            {method}
-          </Badge>
-        </div>
+        <Badge variant="outline" className="rounded-sm px-2 md:px-3 text-xs md:text-sm hidden md:block">
+          {method}
+        </Badge>
       )
     },
-    width: "160px",
+    width: "120px",
     align: "center",
     enableSorting: true,
   },
@@ -338,38 +334,38 @@ const paymentFields: TableField<Payment>[] = [
         completed: { 
           label: "Completed", 
           variant: "outline" as const, 
-          color: "text-green-600",
+          color: "bg-green-500",
           icon: <CheckCircle className="h-3 w-3" />
         },
         pending: { 
           label: "Pending", 
           variant: "outline" as const, 
-          color: "text-yellow-600",
+          color: "bg-yellow-500",
           icon: <Clock className="h-3 w-3" />
         },
         processing: { 
           label: "Processing", 
           variant: "outline" as const, 
-          color: "text-blue-600",
+          color: "bg-blue-500",
           icon: <Clock className="h-3 w-3" />
         },
         failed: { 
           label: "Failed", 
           variant: "outline" as const, 
-          color: "text-red-600",
+          color: "bg-red-500",
           icon: <AlertCircle className="h-3 w-3" />
         },
         refunded: { 
           label: "Refunded", 
           variant: "outline" as const, 
-          color: "text-purple-600",
+          color: "bg-purple-500",
           icon: <TrendingDown className="h-3 w-3" />
         }
       }
       const config = statusConfig[status]
       return (
-        <Badge variant={config.variant} className={cn("gap-2 px-3 rounded-sm", config.color)}>
-          {config.icon}
+        <Badge variant={config.variant} className="gap-1 px-2 md:px-3 text-xs md:text-sm rounded-sm">
+          <span className="hidden md:inline">{config.icon}</span>
           {config.label}
         </Badge>
       )
@@ -380,15 +376,49 @@ const paymentFields: TableField<Payment>[] = [
   },
 ]
 
+// Mobile table fields (simplified view)
+const mobilePaymentFields: TableField<Payment>[] = [
+  {
+    key: "paymentInfo",
+    header: "Payment",
+    cell: (_, row) => (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="font-medium text-sm">{row.paymentNumber}</span>
+          <Badge variant="outline" className="text-xs">
+            {row.status}
+          </Badge>
+        </div>
+        <div className="font-medium text-sm">{row.invoiceNumber}</div>
+        <div className="text-sm truncate">{row.clientName}</div>
+        <div className="text-xs text-muted-foreground truncate">
+          <Mail className="inline h-3 w-3 mr-1" />
+          {row.clientEmail}
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">${row.totalAmount.toLocaleString()}</span>
+          <Badge variant="outline" className="text-xs">
+            {row.paymentMethod}
+          </Badge>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Paid: {new Date(row.paymentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+        </div>
+      </div>
+    ),
+    enableSorting: true,
+  },
+]
+
 // Search input component
 function SearchInput({ className, ...props }: React.ComponentProps<"input">) {
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         type="search"
-        className={cn("pl-10", className)}
-        placeholder="Search payments by number, client, invoice..."
+        className={cn("pl-10 w-full text-sm md:text-base", className)}
+        placeholder="Search payments..."
         {...props}
       />
     </div>
@@ -415,10 +445,12 @@ export default function PaymentsPage() {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
   const [dateFilter, setDateFilter] = useState<string>("all")
   const [selectedPayments, setSelectedPayments] = useState<Payment[]>([])
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
+  
+  const isMobile = useIsMobile()
 
   // Filter payments based on search and filters
   const filteredPayments = mockPayments.filter((payment) => {
-    // Search filter
     const searchLower = searchQuery.toLowerCase()
     const matchesSearch = 
       !searchQuery ||
@@ -428,16 +460,13 @@ export default function PaymentsPage() {
       payment.clientEmail.toLowerCase().includes(searchLower) ||
       payment.transactionId.toLowerCase().includes(searchLower)
 
-    // Status filter
     const matchesStatus = 
       statusFilter === "all" || payment.status === statusFilter
 
-    // Payment method filter
     const matchesPaymentMethod = 
       paymentMethodFilter === "all" || payment.paymentMethod.toLowerCase() === paymentMethodFilter
 
-    // Date filter (simplified - last 30 days)
-    const matchesDate = dateFilter === "all" || true // Implement date filtering logic
+    const matchesDate = dateFilter === "all" || true
 
     return matchesSearch && matchesStatus && matchesPaymentMethod && matchesDate
   })
@@ -461,7 +490,7 @@ export default function PaymentsPage() {
     },
     {
       title: "Total Revenue",
-      value: `$${stats.totalAmount.toLocaleString()}`,
+      value: `$${(stats.totalAmount / 1000).toFixed(1)}k`,
       icon: <DollarSign className="size-4" />,
       iconBgColor: "bg-green-400 dark:bg-green-900/20",
       footerDescription: "Total amount processed",
@@ -472,7 +501,7 @@ export default function PaymentsPage() {
       }
     },
     {
-      title: "Completed Payments",
+      title: "Completed",
       value: stats.completed.toString(),
       icon: <CheckCircle className="size-4" />,
       iconBgColor: "bg-green-400 dark:bg-green-900/20",
@@ -503,66 +532,48 @@ export default function PaymentsPage() {
       type: "view",
       label: "View Payment",
       icon: <Eye className="size-4" />,
-      onClick: (payment) => {
-        console.log("View payment:", payment)
-        // Navigate to payment details
-      },
+      onClick: (payment) => console.log("View payment:", payment),
     },
     {
       type: "edit",
       label: "Edit Payment",
       icon: <Edit className="size-4" />,
-      onClick: (payment) => {
-        console.log("Edit payment:", payment)
-        // Open edit modal
-      },
-      disabled: (payment) => payment.status === "completed", // Cannot edit completed payments
+      onClick: (payment) => console.log("Edit payment:", payment),
+      disabled: (payment) => payment.status === "completed",
     },
     {
       type: "delete",
       label: "Delete Payment",
       icon: <Trash2 className="size-4" />,
-      onClick: (payment) => {
-        console.log("Delete payment:", payment)
-        // Show delete confirmation
-      },
-      disabled: (payment) => payment.status === "completed", // Cannot delete completed payments
+      onClick: (payment) => console.log("Delete payment:", payment),
+      disabled: (payment) => payment.status === "completed",
     },
   ]
 
-  // Handle row click
   const handleRowClick = useCallback((payment: Payment) => {
     console.log("Row clicked:", payment)
-    // Navigate to payment details
   }, [])
 
-  // Handle selection change
   const handleSelectionChange = useCallback((selected: Payment[]) => {
     setSelectedPayments(selected)
-    console.log("Selected payments:", selected.length)
   }, [])
 
-  // Export selected payments
   const handleExport = useCallback(() => {
     if (selectedPayments.length === 0) {
       alert("Please select payments to export")
       return
     }
     console.log("Exporting payments:", selectedPayments)
-    // Implement export logic
   }, [selectedPayments])
 
-  // Send receipts for selected payments
   const handleSendReceipts = useCallback(() => {
     if (selectedPayments.length === 0) {
       alert("Please select payments to send receipts")
       return
     }
     console.log("Sending receipts for:", selectedPayments)
-    // Implement send receipts logic
   }, [selectedPayments])
 
-  // Clear all filters
   const clearFilters = useCallback(() => {
     setSearchQuery("")
     setStatusFilter("all")
@@ -570,20 +581,7 @@ export default function PaymentsPage() {
     setDateFilter("all")
   }, [])
 
-  // Get date range options
-  // const getDateRangeOptions = () => {
-  //   const today = new Date()
-  //   const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-  //   const lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-  //   const lastQuarter = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000)
-    
-  //   return {
-  //     today: today.toISOString().split('T')[0],
-  //     lastWeek: lastWeek.toISOString().split('T')[0],
-  //     lastMonth: lastMonth.toISOString().split('T')[0],
-  //     lastQuarter: lastQuarter.toISOString().split('T')[0],
-  //   }
-  // }
+  const hasActiveFilters = searchQuery || statusFilter !== "all" || paymentMethodFilter !== "all" || dateFilter !== "all"
 
   return (
     <>
@@ -591,39 +589,130 @@ export default function PaymentsPage() {
         rightActions={
           <Button
             variant={"secondary"} 
-            className="h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white"
+            className="h-9 w-full md:h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white text-sm md:text-base"
             onClick={() => setSheetOpen(true)}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Payment
+            <Plus className="mr-1 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+            <span className="sm:inline">Add Payment</span>
           </Button>
         }
       />
       
-      <div className="min-h-screen p-6">
-        {/* Stats Overview using SectionCards */}
-        <div className="mb-6">
+      <div className="min-h-screen p-3 sm:p-4 md:p-6">
+        {/* Stats Overview - Responsive grid */}
+        <div className="mb-4 md:mb-6">
           <SectionCards
             cards={paymentStatsCards}
-            layout="1x4"
-            className="gap-4"
+            layout={isMobile ? "2x2" : "1x4"}
+            className="gap-2 md:gap-4"
           />
         </div>
 
-        {/* Search and Filters */}
-        <Card className="mb-6 border-none shadow-none">
-          <CardContent className="p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-1 flex-col gap-4 sm:flex-row">
+        {/* Search and Filters - Mobile optimized */}
+        <Card className="mb-4 md:mb-6 border-none shadow-none p-0 pt-2">
+          <CardContent className="p-3 md:p-4 lg:p-6">
+            {/* Top row: Search and Filter toggle */}
+            <div className="flex flex-col gap-3 mb-3 md:mb-4">
+              <div className="flex items-center gap-2">
                 <SearchInput
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="sm:w-[450px]"
+                  className="flex-1"
                 />
                 
+                {/* Mobile filter toggle */}
+                {isMobile && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 flex-shrink-0"
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              {/* Mobile filters panel */}
+              {isMobile && showMobileFilters && (
+                <div className="space-y-2 p-2 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Filters</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Payment Method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Methods</SelectItem>
+                      <SelectItem value="credit card">Credit Card</SelectItem>
+                      <SelectItem value="bank transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="paypal">PayPal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Date Range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Dates</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop filters row */}
+            {!isMobile && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 <div className="flex flex-wrap gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <Filter className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -638,7 +727,7 @@ export default function PaymentsPage() {
                   </Select>
                   
                   <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-[160px] text-sm">
                       <CreditCard className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Payment Method" />
                     </SelectTrigger>
@@ -653,7 +742,7 @@ export default function PaymentsPage() {
                   </Select>
                   
                   <Select value={dateFilter} onValueChange={setDateFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[160px] text-sm">
                       <Calendar className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Date Range" />
                     </SelectTrigger>
@@ -666,95 +755,103 @@ export default function PaymentsPage() {
                     </SelectContent>
                   </Select>
                   
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="h-10"
-                  >
-                    Clear Filters
-                  </Button>
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-9 text-sm"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                {selectedPayments.length > 0 && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExport}
-                      className="h-10"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export ({selectedPayments.length})
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleSendReceipts}
-                      className="h-10 bg-green-600 hover:bg-green-700"
-                    >
-                      <Mail className="mr-2 h-4 w-4" />
-                      Send Receipts ({selectedPayments.length})
-                    </Button>
-                  </>
-                )}
-
-              </div>
-            </div>
-            
-            {/* Filter summary */}
-            {(searchQuery || statusFilter !== "all" || paymentMethodFilter !== "all" || dateFilter !== "all") && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Filtered:</span>
-                {searchQuery && (
-                  <Badge variant="secondary" className="gap-1">
-                    Search: "{searchQuery}"
-                  </Badge>
-                )}
-                {statusFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Status: {statusFilter}
-                  </Badge>
-                )}
-                {paymentMethodFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Method: {paymentMethodFilter}
-                  </Badge>
-                )}
-                {dateFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Date: {dateFilter}
-                  </Badge>
-                )}
-                <Badge variant="outline">
-                  {filteredPayments.length} of {mockPayments.length} payments
-                </Badge>
-                <Badge variant="outline" className="text-green-600 border-green-200">
-                  ${stats.totalAmount.toLocaleString()} total
-                </Badge>
-              </div>
             )}
+
+            {/* Actions row */}
+            <div className="flex items-center justify-between">
+              {/* Filter summary */}
+              {hasActiveFilters && (
+                <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+                  <span className="text-xs md:text-sm text-muted-foreground">Filtered:</span>
+                  {searchQuery && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      "{searchQuery}"
+                    </Badge>
+                  )}
+                  {statusFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {statusFilter}
+                    </Badge>
+                  )}
+                  {paymentMethodFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {paymentMethodFilter}
+                    </Badge>
+                  )}
+                  {dateFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {dateFilter}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs h-6">
+                    {filteredPayments.length} of {mockPayments.length}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs h-6 text-green-600">
+                    ${stats.totalAmount.toLocaleString()}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Selected actions */}
+              {selectedPayments.length > 0 && (
+                <div className="flex items-center gap-1 md:gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    className="h-8 md:h-9 text-xs md:text-sm"
+                  >
+                    <Download className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Export</span>
+                    <span className="sm:hidden">Exp</span>
+                    <span className="ml-1">({selectedPayments.length})</span>
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleSendReceipts}
+                    className="h-8 md:h-9 bg-green-600 hover:bg-green-700 text-xs md:text-sm"
+                  >
+                    <span className="hidden sm:inline">Send Receipts</span>
+                    <span className="sm:hidden">Receipts</span>
+                    <span className="ml-1">({selectedPayments.length})</span>
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         {/* Payments Table */}
         <Card className="border-none shadow-none">
-          <CardContent className="px-6">
-            <DataTable
-              title="Payments"
-              description="Manage and view all payment records"
-              data={filteredPayments}
-              fields={paymentFields}
-              actions={paymentActions}
-              loading={false}
-              enableSelection={true}
-              enablePagination={true}
-              pageSize={8}
-              onRowClick={handleRowClick}
-              onSelectionChange={handleSelectionChange}
-            />
+          <CardContent className={cn("p-0", isMobile ? "px-2" : "px-6")}>
+            <div className="overflow-x-auto">
+              <DataTable
+                title="Payments"
+                description="Manage and view all payment records"
+                data={filteredPayments}
+                fields={isMobile ? mobilePaymentFields : paymentFields}
+                actions={paymentActions}
+                loading={false}
+                enableSelection={isMobile ? false : true}
+                enablePagination={true}
+                pageSize={isMobile ? 6 : 8}
+                onRowClick={handleRowClick}
+                onSelectionChange={handleSelectionChange}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>

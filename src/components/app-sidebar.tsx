@@ -147,7 +147,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     "group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:hidden",
                     "bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100"
                   )}>
-                    Akili Med
+                    AkiliMed
                   </span>
                 </div>
               </Link>

@@ -8,6 +8,8 @@ import { AddAppointmentSheet } from "@/components/add-appointment-sheet"
 import { useState, useCallback } from "react"
 import type { Event } from "@/components/enhanced-calender"
 import { EnhancedCalendar } from "@/components/enhanced-calender"
+import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // Sample appointment data structure
 const initialAppointments: Event[] = [
@@ -135,6 +137,8 @@ const availableTags = [
 export default function AppointmentsPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [appointments, setAppointments] = useState<Event[]>(initialAppointments)
+  const [mobileView] = useState<"month" | "week" | "day" | "list">("week")
+  const isMobile = useIsMobile()
 
   const handleEventCreate = useCallback((event: Omit<Event, "id">) => {
     const newAppointment: Event = {
@@ -209,36 +213,44 @@ export default function AppointmentsPage() {
       <SiteHeader
         rightActions={
           <Button 
-            className="h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white"
+            className={cn(
+              "h-9 md:h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white",
+              isMobile ? "text-xs px-3" : ""
+            )}
             onClick={() => setSheetOpen(true)}
+            size={isMobile ? "sm" : "default"}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Appointment
+            <Plus className={cn("h-3 w-3 md:h-4 md:w-4", isMobile ? "mr-1" : "mr-2")} />
+            {isMobile ? "Add" : "Add Appointment"}
           </Button>
         }
       />
       <div className="min-h-screen">
-        <div className="px-4 sm:px-6 lg:px-8 py-6">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold tracking-tight">Appointments</h1>
-            <p className="text-muted-foreground mt-2">
+        <div className="p-3 sm:p-4 md:p-6">
+          <div className="mb-4 md:mb-6">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
+              Appointments
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2">
               Manage and schedule patient appointments. Drag and drop to reschedule.
             </p>
           </div>
+        
           
-          <Card className="border-none shadow-none">
-            <div className="px-8">
-              <EnhancedCalendar
-                events={appointments}
-                onEventCreate={handleEventCreate}
-                onEventUpdate={handleEventUpdate}
-                onEventDelete={handleEventDelete}
-                categories={appointmentCategories}
-                availableTags={availableTags}
-                defaultView="week"
-                className="w-full"
-              />
-            </div>
+          <Card className={cn(
+            "border-none shadow-none",
+            isMobile ? "p-2" : "p-6 md:p-6"
+          )}>
+            <EnhancedCalendar
+              events={appointments}
+              onEventCreate={handleEventCreate}
+              onEventUpdate={handleEventUpdate}
+              onEventDelete={handleEventDelete}
+              categories={appointmentCategories}
+              availableTags={availableTags}
+              defaultView={isMobile ? mobileView : "week"}
+              className="w-full"
+            />
           </Card>
           
         </div>

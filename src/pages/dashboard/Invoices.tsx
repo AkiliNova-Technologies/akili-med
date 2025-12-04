@@ -21,7 +21,7 @@ import {
   Clock,
   AlertCircle,
   Mail,
-  Phone
+  X
 } from "lucide-react"
 
 import { 
@@ -35,6 +35,7 @@ import { SectionCards, type CardData } from "@/components/section-cards"
 import { cn } from "@/lib/utils"
 import { DataTable, type TableAction, type TableField } from "@/components/data-table"
 import { AddInvoiceSheet } from "@/components/add-invoice-sheet"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // Define invoice data type
 interface Invoice {
@@ -56,7 +57,7 @@ interface Invoice {
   [key: string]: any
 }
 
-// Mock invoice data
+// Mock invoice data (same as before)
 const mockInvoices: Invoice[] = [
   {
     id: "1",
@@ -222,14 +223,14 @@ const mockInvoices: Invoice[] = [
   }
 ]
 
-// Table fields configuration
+// Table fields configuration - Simplified for mobile
 const invoiceFields: TableField<Invoice>[] = [
   {
     key: "invoiceNumber",
     header: "Invoice #",
     cell: (value) => (
       <div className="flex items-center gap-2">
-        <span className="font-medium">{value as string}</span>
+        <span className="font-medium text-sm md:text-base">{value as string}</span>
       </div>
     ),
     width: "140px",
@@ -237,17 +238,16 @@ const invoiceFields: TableField<Invoice>[] = [
   },
   {
     key: "clientInfo",
-    header: "Client Information",
+    header: "Client",
     cell: (_, row) => (
-      <div className="space-y-1">
-        <div className="font-medium">{row.clientName}</div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Mail className="h-3 w-3" />
-          {row.clientEmail}
+      <div className="space-y-1 min-w-0">
+        <div className="font-medium text-sm md:text-base truncate">{row.clientName}</div>
+        <div className="hidden md:flex items-center gap-2 text-xs md:text-sm text-muted-foreground truncate">
+          <Mail className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{row.clientEmail}</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Phone className="h-3 w-3" />
-          {row.clientPhone}
+        <div className="md:hidden text-xs text-muted-foreground truncate">
+          {row.clientEmail}
         </div>
       </div>
     ),
@@ -259,39 +259,28 @@ const invoiceFields: TableField<Invoice>[] = [
     header: "Amount",
     cell: (_, row) => (
       <div className="space-y-1">
-        <div className="font-medium">${row.totalAmount.toLocaleString()}</div>
-        <div className="text-sm text-muted-foreground">
+        <div className="font-medium text-sm md:text-base">${row.totalAmount.toLocaleString()}</div>
+        <div className="text-xs md:text-sm text-muted-foreground hidden md:block">
           Base: ${row.amount.toLocaleString()}
         </div>
-        {row.discount > 0 && (
-          <div className="text-sm text-muted-foreground">
-            Discount: ${row.discount.toLocaleString()}
-          </div>
-        )}
       </div>
     ),
-    width: "150px",
+    width: "120px",
     enableSorting: true,
   },
   {
     key: "dates",
     header: "Dates",
     cell: (_, row) => (
-      <div className="space-y-1">
+      <div className="space-y-1 hidden md:block">
         <div className="flex items-center gap-2 text-sm">
-          <Calendar className="h-3 w-3 text-muted-foreground" />
-          <span>Issued: {new Date(row.issuedDate).toLocaleDateString()}</span>
+          <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">Issued: {new Date(row.issuedDate).toLocaleDateString()}</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <Calendar className="h-3 w-3 text-muted-foreground" />
-          <span>Due: {new Date(row.dueDate).toLocaleDateString()}</span>
+          <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">Due: {new Date(row.dueDate).toLocaleDateString()}</span>
         </div>
-        {row.paidDate && (
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle className="h-3 w-3" />
-            <span>Paid: {new Date(row.paidDate).toLocaleDateString()}</span>
-          </div>
-        )}
       </div>
     ),
     width: "180px",
@@ -336,26 +325,55 @@ const invoiceFields: TableField<Invoice>[] = [
       }
       const config = statusConfig[status]
       return (
-        <Badge variant={config.variant} className="gap-2 px-3 rounded-sm">
-          {config.icon}
+        <Badge variant={config.variant} className="gap-1 px-2 md:px-3 text-xs md:text-sm rounded-sm">
+          <span className="hidden md:inline">{config.icon}</span>
           {config.label}
         </Badge>
       )
     },
-    width: "120px",
+    width: "100px",
     align: "center",
     enableSorting: true,
   },
   {
     key: "paymentMethod",
-    header: "Payment Method",
+    header: "Payment",
     cell: (value) => (
-      <Badge variant="outline" className="rounded-sm px-3">
+      <Badge variant="outline" className="rounded-sm px-2 md:px-3 text-xs md:text-sm hidden md:block">
         {value as string}
       </Badge>
     ),
-    width: "140px",
+    width: "120px",
     align: "center",
+    enableSorting: true,
+  },
+]
+
+// Mobile table fields (simplified view)
+const mobileInvoiceFields: TableField<Invoice>[] = [
+  {
+    key: "invoiceInfo",
+    header: "Invoice",
+    cell: (_, row) => (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="font-medium text-sm">{row.invoiceNumber}</span>
+          <Badge variant="outline" className="text-xs">
+            {row.status}
+          </Badge>
+        </div>
+        <div className="font-medium text-sm truncate">{row.clientName}</div>
+        <div className="text-xs text-muted-foreground truncate">
+          {row.clientEmail}
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">${row.totalAmount.toLocaleString()}</span>
+          <span className="text-xs text-muted-foreground">
+            Due: {new Date(row.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
+        </div>
+      </div>
+    ),
     enableSorting: true,
   },
 ]
@@ -363,12 +381,12 @@ const invoiceFields: TableField<Invoice>[] = [
 // Search input component
 function SearchInput({ className, ...props }: React.ComponentProps<"input">) {
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         type="search"
-        className={cn("pl-10", className)}
-        placeholder="Search invoices by number, client, email..."
+        className={cn("pl-10 w-full text-sm md:text-base", className)}
+        placeholder="Search invoices..."
         {...props}
       />
     </div>
@@ -394,10 +412,12 @@ export default function InvoicesPage() {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
   const [dateFilter, setDateFilter] = useState<string>("all")
   const [selectedInvoices, setSelectedInvoices] = useState<Invoice[]>([])
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
+  
+  const isMobile = useIsMobile()
 
   // Filter invoices based on search and filters
   const filteredInvoices = mockInvoices.filter((invoice) => {
-    // Search filter
     const searchLower = searchQuery.toLowerCase()
     const matchesSearch = 
       !searchQuery ||
@@ -405,16 +425,13 @@ export default function InvoicesPage() {
       invoice.clientName.toLowerCase().includes(searchLower) ||
       invoice.clientEmail.toLowerCase().includes(searchLower)
 
-    // Status filter
     const matchesStatus = 
       statusFilter === "all" || invoice.status === statusFilter
 
-    // Payment method filter
     const matchesPaymentMethod = 
       paymentMethodFilter === "all" || invoice.paymentMethod.toLowerCase() === paymentMethodFilter
 
-    // Date filter (simplified)
-    const matchesDate = dateFilter === "all" || true // Implement date filtering logic
+    const matchesDate = dateFilter === "all" || true
 
     return matchesSearch && matchesStatus && matchesPaymentMethod && matchesDate
   })
@@ -438,7 +455,7 @@ export default function InvoicesPage() {
     },
     {
       title: "Total Revenue",
-      value: `$${stats.totalAmount.toLocaleString()}`,
+      value: `$${(stats.totalAmount / 1000).toFixed(1)}k`,
       icon: <DollarSign className="size-4" />,
       iconBgColor: "bg-green-400 dark:bg-green-900/20",
       footerDescription: "All time revenue",
@@ -450,7 +467,7 @@ export default function InvoicesPage() {
     },
     {
       title: "Pending Amount",
-      value: `$${stats.pendingAmount.toLocaleString()}`,
+      value: `$${(stats.pendingAmount / 1000).toFixed(1)}k`,
       icon: <Clock className="size-4" />,
       iconBgColor: "bg-yellow-400 dark:bg-yellow-900/20",
       footerDescription: "Awaiting payment",
@@ -461,7 +478,7 @@ export default function InvoicesPage() {
       }
     },
     {
-      title: "Overdue Invoices",
+      title: "Overdue",
       value: stats.overdue.toString(),
       icon: <AlertCircle className="size-4" />,
       iconBgColor: "bg-red-400 dark:bg-red-900/20",
@@ -480,65 +497,47 @@ export default function InvoicesPage() {
       type: "view",
       label: "View Invoice",
       icon: <Eye className="size-4" />,
-      onClick: (invoice) => {
-        console.log("View invoice:", invoice)
-        // Navigate to invoice details
-      },
+      onClick: (invoice) => console.log("View invoice:", invoice),
     },
     {
       type: "edit",
       label: "Edit Invoice",
       icon: <Edit className="size-4" />,
-      onClick: (invoice) => {
-        console.log("Edit invoice:", invoice)
-        // Open edit modal
-      },
+      onClick: (invoice) => console.log("Edit invoice:", invoice),
     },
     {
       type: "delete",
       label: "Delete Invoice",
       icon: <Trash2 className="size-4" />,
-      onClick: (invoice) => {
-        console.log("Delete invoice:", invoice)
-        // Show delete confirmation
-      },
-      disabled: (invoice) => invoice.status === "paid", // Cannot delete paid invoices
+      onClick: (invoice) => console.log("Delete invoice:", invoice),
+      disabled: (invoice) => invoice.status === "paid",
     },
   ]
 
-  // Handle row click
   const handleRowClick = useCallback((invoice: Invoice) => {
     console.log("Row clicked:", invoice)
-    // Navigate to invoice details
   }, [])
 
-  // Handle selection change
   const handleSelectionChange = useCallback((selected: Invoice[]) => {
     setSelectedInvoices(selected)
-    console.log("Selected invoices:", selected.length)
   }, [])
 
-  // Export selected invoices
   const handleExport = useCallback(() => {
     if (selectedInvoices.length === 0) {
       alert("Please select invoices to export")
       return
     }
     console.log("Exporting invoices:", selectedInvoices)
-    // Implement export logic
   }, [selectedInvoices])
 
-  // Send selected invoices
   const handleSend = useCallback(() => {
     if (selectedInvoices.length === 0) {
       alert("Please select invoices to send")
       return
     }
     console.log("Sending invoices:", selectedInvoices)
-    // Implement send logic
   }, [selectedInvoices])
 
-  // Clear all filters
   const clearFilters = useCallback(() => {
     setSearchQuery("")
     setStatusFilter("all")
@@ -546,45 +545,125 @@ export default function InvoicesPage() {
     setDateFilter("all")
   }, [])
 
+  const hasActiveFilters = searchQuery || statusFilter !== "all" || paymentMethodFilter !== "all" || dateFilter !== "all"
+
   return (
     <>
       <SiteHeader
         rightActions={
           <Button
             variant={"secondary"} 
-            className="h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white"
+            className="h-9 w-full md:h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white text-sm md:text-base"
             onClick={() => setSheetOpen(true)}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Invoice
+            <Plus className="mr-1 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+            <span className="sm:inline">Add Invoice</span>
           </Button>
         }
       />
       
-      <div className="min-h-screen p-6">
-        {/* Stats Overview using SectionCards */}
-        <div className="mb-6">
+      <div className="min-h-screen p-3 sm:p-4 md:p-6">
+        {/* Stats Overview - Responsive grid */}
+        <div className="mb-4 md:mb-6">
           <SectionCards
             cards={invoiceStatsCards}
-            layout="1x4"
-            className="gap-4"
+            layout={isMobile ? "2x2" : "1x4"}
+            className="gap-2 md:gap-4"
           />
         </div>
 
-        {/* Search and Filters */}
-        <Card className="mb-6 border-none shadow-none">
-          <CardContent className="p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-1 flex-col gap-4 sm:flex-row">
+        {/* Search and Filters - Mobile optimized */}
+        <Card className="mb-4 md:mb-6 border-none shadow-none p-0 pt-2">
+          <CardContent className="p-3 md:p-4 lg:p-6">
+            {/* Top row: Search and Filter toggle */}
+            <div className="flex flex-col gap-3 mb-3 md:mb-4">
+              <div className="flex items-center gap-2">
                 <SearchInput
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="sm:w-[450px]"
+                  className="flex-1"
                 />
                 
+                {/* Mobile filter toggle */}
+                {isMobile && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 flex-shrink-0"
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              {/* Mobile filters panel */}
+              {isMobile && showMobileFilters && (
+                <div className="space-y-2 p-2 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Filters</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="overdue">Overdue</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Payment Method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Methods</SelectItem>
+                      <SelectItem value="credit card">Credit Card</SelectItem>
+                      <SelectItem value="bank transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="paypal">PayPal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop filters row */}
+            {!isMobile && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 <div className="flex flex-wrap gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <Filter className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -599,7 +678,7 @@ export default function InvoicesPage() {
                   </Select>
                   
                   <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[160px] text-sm">
                       <DollarSign className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Payment Method" />
                     </SelectTrigger>
@@ -614,7 +693,7 @@ export default function InvoicesPage() {
                   </Select>
                   
                   <Select value={dateFilter} onValueChange={setDateFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[160px] text-sm">
                       <Calendar className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Date Range" />
                     </SelectTrigger>
@@ -623,96 +702,98 @@ export default function InvoicesPage() {
                       <SelectItem value="today">Today</SelectItem>
                       <SelectItem value="week">This Week</SelectItem>
                       <SelectItem value="month">This Month</SelectItem>
-                      <SelectItem value="quarter">This Quarter</SelectItem>
-                      <SelectItem value="year">This Year</SelectItem>
                     </SelectContent>
                   </Select>
                   
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="h-10"
-                  >
-                    Clear Filters
-                  </Button>
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-9 text-sm"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                {selectedInvoices.length > 0 && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExport}
-                      className="h-10"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export ({selectedInvoices.length})
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleSend}
-                      className="h-10 bg-green-600 hover:bg-green-700"
-                    >
-                      Send ({selectedInvoices.length})
-                    </Button>
-                  </>
-                )}
-               
-              </div>
-            </div>
-            
-            {/* Filter summary */}
-            {(searchQuery || statusFilter !== "all" || paymentMethodFilter !== "all" || dateFilter !== "all") && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Filtered:</span>
-                {searchQuery && (
-                  <Badge variant="secondary" className="gap-1">
-                    Search: "{searchQuery}"
-                  </Badge>
-                )}
-                {statusFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Status: {statusFilter}
-                  </Badge>
-                )}
-                {paymentMethodFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Method: {paymentMethodFilter}
-                  </Badge>
-                )}
-                {dateFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Date: {dateFilter}
-                  </Badge>
-                )}
-                <Badge variant="outline">
-                  {filteredInvoices.length} of {mockInvoices.length} invoices
-                </Badge>
-              </div>
             )}
+
+            {/* Actions row */}
+            <div className="flex items-center justify-between">
+              {/* Filter summary */}
+              {hasActiveFilters && (
+                <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+                  <span className="text-xs md:text-sm text-muted-foreground">Filtered:</span>
+                  {searchQuery && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      "{searchQuery}"
+                    </Badge>
+                  )}
+                  {statusFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {statusFilter}
+                    </Badge>
+                  )}
+                  {paymentMethodFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {paymentMethodFilter}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs h-6">
+                    {filteredInvoices.length} of {mockInvoices.length}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Selected actions */}
+              {selectedInvoices.length > 0 && (
+                <div className="flex items-center gap-1 md:gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    className="h-8 md:h-9 text-xs md:text-sm"
+                  >
+                    <Download className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Export</span>
+                    <span className="sm:hidden">Exp</span>
+                    <span className="ml-1">({selectedInvoices.length})</span>
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleSend}
+                    className="h-8 md:h-9 bg-green-600 hover:bg-green-700 text-xs md:text-sm"
+                  >
+                    <span className="hidden sm:inline">Send</span>
+                    <span className="sm:hidden">Send</span>
+                    <span className="ml-1">({selectedInvoices.length})</span>
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         {/* Invoices Table */}
         <Card className="border-none shadow-none">
-          <CardContent className="px-6">
-            <DataTable
-              title="Invoices"
-              description="Manage and view all invoice records"
-              data={filteredInvoices}
-              fields={invoiceFields}
-              actions={invoiceActions}
-              loading={false}
-              enableSelection={true}
-              enablePagination={true}
-              pageSize={8}
-              onRowClick={handleRowClick}
-              onSelectionChange={handleSelectionChange}
-            />
+          <CardContent className={cn("p-0", isMobile ? "px-2" : "px-6")}>
+            <div className="overflow-x-auto">
+              <DataTable
+                title="Invoices"
+                description="Manage and view all invoice records"
+                data={filteredInvoices}
+                fields={isMobile ? mobileInvoiceFields : invoiceFields}
+                actions={invoiceActions}
+                loading={false}
+                enableSelection={isMobile ? false : true}
+                enablePagination={true}
+                pageSize={isMobile ? 6 : 8}
+                onRowClick={handleRowClick}
+                onSelectionChange={handleSelectionChange}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -28,7 +28,8 @@ import {
   List,
   Paperclip,
   Video,
-  FileText
+  FileText,
+  X
 } from "lucide-react"
 
 import { 
@@ -42,6 +43,7 @@ import { SectionCards, type CardData } from "@/components/section-cards"
 import { cn } from "@/lib/utils"
 import { DataTable, type TableAction, type TableField } from "@/components/data-table"
 import { AddCommunicationSheet } from "@/components/add-communication-sheet"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // Define communication data type
 interface Communication {
@@ -249,15 +251,15 @@ const mockCommunications: Communication[] = [
   }
 ]
 
-// Table fields configuration
+// Desktop table fields configuration
 const communicationFields: TableField<Communication>[] = [
   {
     key: "reference",
     header: "Reference",
     cell: (value) => (
-      <div className="flex items-center gap-2">
-        <span className="font-mono font-medium">{value as string}</span>
-      </div>
+      <span className="font-mono font-medium text-sm md:text-base">
+        {value as string}
+      </span>
     ),
     width: "130px",
     enableSorting: true,
@@ -266,28 +268,24 @@ const communicationFields: TableField<Communication>[] = [
     key: "communicationDetails",
     header: "Communication",
     cell: (_, row) => (
-      <div className="space-y-2">
-        <div className="font-medium">{row.subject}</div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <User className="h-3 w-3" />
-            <span>From: {row.from}</span>
+      <div className="space-y-1 min-w-0">
+        <div className="font-medium text-sm md:text-base truncate">{row.subject}</div>
+        <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1 truncate">
+            <User className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">From: {row.from}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Send className="h-3 w-3" />
-            <span>To: {row.to}</span>
+          <div className="flex items-center gap-1 truncate">
+            <Send className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">To: {row.to}</span>
           </div>
         </div>
-        <div className="flex flex-wrap gap-1">
-          {row.tags.map((tag, index) => (
-            <Badge key={index} variant="outline" className="text-xs">
-              {tag}
-            </Badge>
-          ))}
+        <div className="md:hidden text-xs text-muted-foreground truncate">
+          From: {row.from}
         </div>
       </div>
     ),
-    width: "300px",
+    width: "250px",
     enableSorting: true,
   },
   {
@@ -296,24 +294,24 @@ const communicationFields: TableField<Communication>[] = [
     cell: (value) => {
       const type = value as Communication["type"]
       const typeConfig = {
-        email: { icon: <Mail className="h-4 w-4" />, color: "text-blue-600", bg: "bg-blue-50", label: "Email" },
-        phone: { icon: <Phone className="h-4 w-4" />, color: "text-green-600", bg: "bg-green-50", label: "Phone" },
-        sms: { icon: <MessageSquare className="h-4 w-4" />, color: "text-purple-600", bg: "bg-purple-50", label: "SMS" },
-        "in-person": { icon: <User className="h-4 w-4" />, color: "text-orange-600", bg: "bg-orange-50", label: "In-Person" },
-        video: { icon: <Video className="h-4 w-4" />, color: "text-red-600", bg: "bg-red-50", label: "Video" },
-        letter: { icon: <FileText className="h-4 w-4" />, color: "text-yellow-600", bg: "bg-yellow-50", label: "Letter" },
-        "internal-note": { icon: <MessageSquare className="h-4 w-4" />, color: "text-gray-600", bg: "bg-gray-50", label: "Internal Note" },
+        email: { icon: <Mail className="h-3 w-3" />, label: "Email" },
+        phone: { icon: <Phone className="h-3 w-3" />, label: "Phone" },
+        sms: { icon: <MessageSquare className="h-3 w-3" />, label: "SMS" },
+        "in-person": { icon: <User className="h-3 w-3" />, label: "In-Person" },
+        video: { icon: <Video className="h-3 w-3" />, label: "Video" },
+        letter: { icon: <FileText className="h-3 w-3" />, label: "Letter" },
+        "internal-note": { icon: <MessageSquare className="h-3 w-3" />, label: "Internal Note" },
       }
       const config = typeConfig[type]
       
       return (
-        <Badge variant="outline" className={cn("gap-2 px-3 rounded-sm",)}>
-          {config.icon}
+        <Badge variant="outline" className="gap-1 px-2 md:px-3 text-xs md:text-sm rounded-sm">
+          <span className="hidden md:inline">{config.icon}</span>
           {config.label}
         </Badge>
       )
     },
-    width: "140px",
+    width: "100px",
     align: "center",
     enableSorting: true,
   },
@@ -321,13 +319,13 @@ const communicationFields: TableField<Communication>[] = [
     key: "dateTime",
     header: "Date & Time",
     cell: (_, row) => (
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-3 w-3 text-muted-foreground" />
-          <span>{new Date(row.date).toLocaleDateString()}</span>
+      <div className="space-y-1 hidden md:block">
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">{new Date(row.date).toLocaleDateString()}</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <Clock className="h-3 w-3 text-muted-foreground" />
+          <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
           <span>{row.time}</span>
           {row.duration && (
             <span className="text-muted-foreground">({row.duration} min)</span>
@@ -347,55 +345,55 @@ const communicationFields: TableField<Communication>[] = [
         sent: { 
           label: "Sent", 
           variant: "outline" as const, 
-          color: "text-blue-600",
+          color: "bg-blue-500",
           icon: <Send className="h-3 w-3" />
         },
         delivered: { 
           label: "Delivered", 
           variant: "outline" as const, 
-          color: "text-green-600 ",
+          color: "bg-green-500",
           icon: <CheckCircle className="h-3 w-3" />
         },
         read: { 
           label: "Read", 
           variant: "outline" as const, 
-          color: "text-purple-600",
+          color: "bg-purple-500",
           icon: <CheckCircle className="h-3 w-3" />
         },
         failed: { 
           label: "Failed", 
           variant: "outline" as const, 
-          color: "text-red-600",
+          color: "bg-red-500",
           icon: <AlertCircle className="h-3 w-3" />
         },
         scheduled: { 
           label: "Scheduled", 
           variant: "outline" as const, 
-          color: "text-yellow-600",
+          color: "bg-yellow-500",
           icon: <Clock className="h-3 w-3" />
         },
         completed: { 
           label: "Completed", 
           variant: "outline" as const, 
-          color: "text-green-600",
+          color: "bg-green-500",
           icon: <CheckCircle className="h-3 w-3" />
         },
         missed: { 
           label: "Missed", 
           variant: "outline" as const, 
-          color: "text-gray-600 ",
+          color: "bg-gray-500",
           icon: <AlertCircle className="h-3 w-3" />
         }
       }
       const config = statusConfig[status]
       return (
-        <Badge variant={config.variant} className={cn("gap-2 px-3 rounded-sm",)}>
-          {config.icon}
+        <Badge variant={config.variant} className="gap-1 px-2 md:px-3 text-xs md:text-sm rounded-sm">
+          <span className="hidden md:inline">{config.icon}</span>
           {config.label}
         </Badge>
       )
     },
-    width: "120px",
+    width: "100px",
     align: "center",
     enableSorting: true,
   },
@@ -418,7 +416,7 @@ const communicationFields: TableField<Communication>[] = [
         high: { 
           label: "High", 
           variant: "outline" as const, 
-          color: "text-orange-600 "
+          color: "text-orange-600"
         },
         urgent: { 
           label: "Urgent", 
@@ -428,7 +426,7 @@ const communicationFields: TableField<Communication>[] = [
       }
       const config = priorityConfig[priority]
       return (
-        <Badge variant={config.variant} className={cn("rounded-sm px-3", config.color)}>
+        <Badge variant={config.variant} className={cn("rounded-sm px-2 md:px-3 text-xs md:text-sm hidden md:block", config.color)}>
           {config.label}
         </Badge>
       )
@@ -443,9 +441,9 @@ const communicationFields: TableField<Communication>[] = [
     cell: (value) => {
       const count = value as number
       return (
-        <div className="flex items-center justify-center">
+        <div className="hidden md:flex items-center justify-center">
           {count > 0 ? (
-            <Badge variant="outline" className="gap-1">
+            <Badge variant="outline" className="gap-1 text-xs md:text-sm">
               <Paperclip className="h-3 w-3" />
               {count}
             </Badge>
@@ -461,15 +459,71 @@ const communicationFields: TableField<Communication>[] = [
   },
 ]
 
+// Mobile table fields
+const mobileCommunicationFields: TableField<Communication>[] = [
+  {
+    key: "communicationInfo",
+    header: "Communication",
+    cell: (_, row) => (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="font-mono font-medium text-sm">{row.reference}</span>
+          <Badge variant="outline" className="text-xs">
+            {row.status}
+          </Badge>
+        </div>
+        <div className="font-medium text-sm flex-wrap text-wrap line-clamp-2 truncate">{row.subject}</div>
+        <div className="text-xs text-muted-foreground flex-wrap text-wrap line-clamp-2 truncate">
+          <User className="inline h-3 w-3 mr-1" />
+          From: {row.from}
+        </div>
+        <div className="text-xs text-muted-foreground truncate">
+          <Send className="inline h-3 w-3 mr-1" />
+          To: {row.to}
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            {row.type}
+          </Badge>
+          {row.attachments > 0 && (
+            <Badge variant="outline" className="text-xs">
+              <Paperclip className="inline h-3 w-3 mr-1" />
+              {row.attachments}
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              {new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {row.time}
+            </span>
+          </div>
+          <Badge variant="outline" className={cn(
+            "text-xs",
+            row.priority === "urgent" ? "text-red-600" :
+            row.priority === "high" ? "text-orange-600" :
+            row.priority === "normal" ? "text-blue-600" :
+            "text-gray-600"
+          )}>
+            {row.priority}
+          </Badge>
+        </div>
+      </div>
+    ),
+    enableSorting: true,
+  },
+]
+
 // Search input component
 function SearchInput({ className, ...props }: React.ComponentProps<"input">) {
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         type="search"
-        className={cn("pl-10", className)}
-        placeholder="Search communications by subject, reference, content..."
+        className={cn("pl-10 w-full text-sm md:text-base", className)}
+        placeholder="Search communications..."
         {...props}
       />
     </div>
@@ -496,10 +550,12 @@ export default function CommunicationsPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [viewMode, setViewMode] = useState<"timeline" | "list">("list")
   const [selectedCommunications, setSelectedCommunications] = useState<Communication[]>([])
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
+  
+  const isMobile = useIsMobile()
 
   // Filter communications based on search and filters
   const filteredCommunications = useMemo(() => mockCommunications.filter((communication) => {
-    // Search filter
     const searchLower = searchQuery.toLowerCase()
     const matchesSearch = 
       !searchQuery ||
@@ -510,15 +566,12 @@ export default function CommunicationsPage() {
       communication.to.toLowerCase().includes(searchLower) ||
       communication.tags.some(tag => tag.toLowerCase().includes(searchLower))
 
-    // Status filter
     const matchesStatus = 
       statusFilter === "all" || communication.status === statusFilter
 
-    // Type filter
     const matchesType = 
       typeFilter === "all" || communication.type === typeFilter
 
-    // Priority filter
     const matchesPriority = 
       priorityFilter === "all" || communication.priority === priorityFilter
 
@@ -586,56 +639,40 @@ export default function CommunicationsPage() {
       type: "view",
       label: "View Communication",
       icon: <Eye className="size-4" />,
-      onClick: (communication) => {
-        console.log("View communication:", communication)
-        // Navigate to communication details
-      },
+      onClick: (communication) => console.log("View communication:", communication),
     },
     {
       type: "edit",
       label: "Edit Communication",
       icon: <Edit className="size-4" />,
-      onClick: (communication) => {
-        console.log("Edit communication:", communication)
-        // Open edit modal
-      },
-      disabled: (communication) => communication.status === "sent" || communication.status === "delivered", // Cannot edit sent communications
+      onClick: (communication) => console.log("Edit communication:", communication),
+      disabled: (communication) => communication.status === "sent" || communication.status === "delivered",
     },
     {
       type: "delete",
       label: "Delete Communication",
       icon: <Trash2 className="size-4" />,
-      onClick: (communication) => {
-        console.log("Delete communication:", communication)
-        // Show delete confirmation
-      },
-      disabled: (communication) => communication.status === "sent" || communication.status === "delivered", // Cannot delete sent communications
+      onClick: (communication) => console.log("Delete communication:", communication),
+      disabled: (communication) => communication.status === "sent" || communication.status === "delivered",
     },
   ]
 
-  // Handle row click
   const handleRowClick = useCallback((communication: Communication) => {
     console.log("Row clicked:", communication)
-    // Navigate to communication details
   }, [])
 
-  // Handle selection change
   const handleSelectionChange = useCallback((selected: Communication[]) => {
     setSelectedCommunications(selected)
-    console.log("Selected communications:", selected.length)
   }, [])
 
-  // Export selected communications
   const handleExport = useCallback(() => {
     if (selectedCommunications.length === 0) {
       alert("Please select communications to export")
       return
     }
     console.log("Exporting communications:", selectedCommunications)
-    // Implement export logic
   }, [selectedCommunications])
 
-  // Resend failed communications
   const handleResend = useCallback(() => {
     const failedComms = selectedCommunications.filter(c => c.status === "failed")
     if (failedComms.length === 0) {
@@ -643,10 +680,8 @@ export default function CommunicationsPage() {
       return
     }
     console.log("Resending communications:", failedComms)
-    // Implement resend logic
   }, [selectedCommunications])
 
-  // Mark as read
   const handleMarkAsRead = useCallback(() => {
     const unreadComms = selectedCommunications.filter(c => c.status === "sent" || c.status === "delivered")
     if (unreadComms.length === 0) {
@@ -654,16 +689,16 @@ export default function CommunicationsPage() {
       return
     }
     console.log("Marking as read:", unreadComms)
-    // Implement mark as read logic
   }, [selectedCommunications])
 
-  // Clear all filters
   const clearFilters = useCallback(() => {
     setSearchQuery("")
     setStatusFilter("all")
     setTypeFilter("all")
     setPriorityFilter("all")
   }, [])
+
+  const hasActiveFilters = searchQuery || statusFilter !== "all" || typeFilter !== "all" || priorityFilter !== "all"
 
   // Get unique types
   const communicationTypes = [
@@ -675,7 +710,6 @@ export default function CommunicationsPage() {
     { value: "letter", label: "Letter" },
     { value: "internal-note", label: "Internal Note" },
   ]
-
 
   // Communication Timeline Component for Timeline View
   const CommunicationTimelineItem = ({ communication, index }: { communication: Communication, index: number }) => {
@@ -700,46 +734,46 @@ export default function CommunicationsPage() {
     }
 
     return (
-      <div className="relative flex gap-4">
+      <div className="relative flex gap-3 md:gap-4">
         {/* Timeline line */}
         {index < filteredCommunications.length - 1 && (
-          <div className="absolute left-6 top-8 h-full w-0.5 bg-gray-200" />
+          <div className="absolute left-5 md:left-6 top-8 h-full w-0.5 bg-gray-200" />
         )}
         
         {/* Timeline dot */}
         <div className={cn(
-          "relative z-10 flex h-12 w-12 items-center justify-center rounded-full border-4 bg-white",
+          "relative z-10 flex h-8 w-8 md:h-12 md:w-12 items-center justify-center rounded-full border-2 md:border-4 bg-white flex-shrink-0",
           typeColors[communication.type]
         )}>
           {communication.type === "email" ? (
-            <Mail className="h-5 w-5 text-blue-600" />
+            <Mail className="h-3 w-3 md:h-5 md:w-5 text-blue-600" />
           ) : communication.type === "phone" ? (
-            <Phone className="h-5 w-5 text-green-600" />
+            <Phone className="h-3 w-3 md:h-5 md:w-5 text-green-600" />
           ) : communication.type === "sms" ? (
-            <MessageSquare className="h-5 w-5 text-purple-600" />
+            <MessageSquare className="h-3 w-3 md:h-5 md:w-5 text-purple-600" />
           ) : communication.type === "in-person" ? (
-            <User className="h-5 w-5 text-orange-600" />
+            <User className="h-3 w-3 md:h-5 md:w-5 text-orange-600" />
           ) : communication.type === "video" ? (
-            <Video className="h-5 w-5 text-red-600" />
+            <Video className="h-3 w-3 md:h-5 md:w-5 text-red-600" />
           ) : communication.type === "letter" ? (
-            <FileText className="h-5 w-5 text-yellow-600" />
+            <FileText className="h-3 w-3 md:h-5 md:w-5 text-yellow-600" />
           ) : (
-            <MessageSquare className="h-5 w-5 text-gray-600" />
+            <MessageSquare className="h-3 w-3 md:h-5 md:w-5 text-gray-600" />
           )}
           <div className={cn(
-            "absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white",
+            "absolute -right-0.5 -top-0.5 md:-right-1 md:-top-1 h-2 w-2 md:h-3 md:w-3 rounded-full border border-white",
             statusColors[communication.status]
           )} />
         </div>
 
         {/* Content */}
         <Card className="flex-1 hover:shadow-md transition-shadow shadow-none border-none">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold text-lg">{communication.subject}</h3>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                  <span>{communication.reference}</span>
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-start justify-between mb-1 md:mb-2">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-sm md:text-lg flex-wrap text-wrap truncate">{communication.subject}</h3>
+                <div className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground mt-1">
+                  <span className="font-mono">{communication.reference}</span>
                   <span>•</span>
                   <span>{communication.time}</span>
                   {communication.duration && (
@@ -750,56 +784,56 @@ export default function CommunicationsPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="capitalize">
+              <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2">
+                <Badge variant="outline" className="capitalize text-xs md:text-sm">
                   {communication.priority}
                 </Badge>
                 {communication.followUpRequired && (
-                  <Badge variant="outline" className="text-yellow-600 border-yellow-200">
-                    <Clock className="h-3 w-3 mr-1" />
+                  <Badge variant="outline" className="text-xs md:text-sm text-yellow-600 border-yellow-200">
+                    <Clock className="h-2 w-2 md:h-3 md:w-3 mr-1" />
                     Follow-up
                   </Badge>
                 )}
               </div>
             </div>
 
-            <div className="space-y-2 mb-3">
-              <div className="flex items-center gap-4 text-sm">
+            <div className="space-y-1 md:space-y-2 mb-2 md:mb-3">
+              <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-xs md:text-sm">
                 <div className="flex items-center gap-1">
                   <Send className="h-3 w-3 text-muted-foreground" />
                   <span className="font-medium">From:</span>
-                  <span>{communication.from}</span>
+                  <span className="truncate">{communication.from}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <User className="h-3 w-3 text-muted-foreground" />
                   <span className="font-medium">To:</span>
-                  <span>{communication.to}</span>
+                  <span className="truncate">{communication.to}</span>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground line-clamp-2">
+              <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">
                 {communication.content}
               </p>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
               <div className="flex flex-wrap gap-1">
-                {communication.tags.slice(0, 3).map((tag, idx) => (
+                {communication.tags.slice(0, isMobile ? 2 : 3).map((tag, idx) => (
                   <Badge key={idx} variant="outline" className="text-xs">
                     {tag}
                   </Badge>
                 ))}
-                {communication.tags.length > 3 && (
+                {communication.tags.length > (isMobile ? 2 : 3) && (
                   <Badge variant="outline" className="text-xs">
-                    +{communication.tags.length - 3}
+                    +{communication.tags.length - (isMobile ? 2 : 3)}
                   </Badge>
                 )}
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
+              <div className="flex gap-1 md:gap-2 self-end md:self-auto">
+                <Button variant="outline" size="sm" className="h-7 md:h-8 text-xs md:text-sm">
                   <Eye className="h-3 w-3 mr-1" />
                   View
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="h-7 md:h-8 text-xs md:text-sm">
                   <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
@@ -817,39 +851,134 @@ export default function CommunicationsPage() {
         rightActions={
           <Button
             variant={"secondary"} 
-            className="h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white"
+            className="h-9 w-full md:h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white text-sm md:text-base"
             onClick={() => setSheetOpen(true)}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Communication
+            <Plus className="mr-1 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+            <span className="sm:inline">Add Communication</span>
           </Button>
         }
       />
       
-      <div className="min-h-screen p-6">
-        {/* Stats Overview using SectionCards */}
-        <div className="mb-6">
+      <div className="min-h-screen p-3 sm:p-4 md:p-6">
+        {/* Stats Overview - Responsive grid */}
+        <div className="mb-4 md:mb-6">
           <SectionCards
             cards={communicationStatsCards}
-            layout="1x4"
-            className="gap-4"
+            layout={isMobile ? "2x2" : "1x4"}
+            className="gap-2 md:gap-4"
           />
         </div>
 
-        {/* Search and Filters */}
-        <Card className="mb-6 border-none shadow-none">
-          <CardContent className="p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-1 flex-col gap-4 sm:flex-row">
+        {/* Search and Filters - Mobile optimized */}
+        <Card className="mb-4 md:mb-6 border-none shadow-none p-0 pt-2">
+          <CardContent className="p-3 md:p-4 lg:p-6">
+            {/* Top row: Search and Filter toggle */}
+            <div className="flex flex-col gap-3 mb-3 md:mb-4">
+              <div className="flex items-center gap-2">
                 <SearchInput
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="sm:w-[450px]"
+                  className="flex-1"
                 />
                 
+                {/* Mobile filter toggle */}
+                {isMobile && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 flex-shrink-0"
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              {/* Mobile filters panel */}
+              {isMobile && showMobileFilters && (
+                <div className="space-y-2 p-2 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Filters</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="sent">Sent</SelectItem>
+                      <SelectItem value="delivered">Delivered</SelectItem>
+                      <SelectItem value="read">Read</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {communicationTypes.map(type => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priority</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop filters row */}
+            {!isMobile && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 <div className="flex flex-wrap gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <Filter className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -866,7 +995,7 @@ export default function CommunicationsPage() {
                   </Select>
                   
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <MessageSquare className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
@@ -881,7 +1010,7 @@ export default function CommunicationsPage() {
                   </Select>
                   
                   <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <AlertCircle className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Priority" />
                     </SelectTrigger>
@@ -894,144 +1023,187 @@ export default function CommunicationsPage() {
                     </SelectContent>
                   </Select>
                   
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="h-10"
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="flex border rounded-md overflow-hidden">
-                  <Button
-                  variant={viewMode === "timeline" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("timeline")}
-                  className={cn(
-                    "h-10 w-[50px] rounded-none border-r",
-                    viewMode === "timeline" 
-                    ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
-                    : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-9 text-sm"
+                    >
+                      Clear Filters
+                    </Button>
                   )}
-                  >
-                  <Grid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className={cn(
-                    "h-10 w-[50px] rounded-none",
-                    viewMode === "list" 
-                    ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
-                    : "bg-transparent text-muted-foreground hover:bg-gray-100"
-                  )}
-                  >
-                  <List className="h-4 w-4" />
-                  </Button>
                 </div>
                 
-                {selectedCommunications.length > 0 && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExport}
-                      className="h-10"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export ({selectedCommunications.length})
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleResend}
-                      className="h-10 bg-yellow-600 hover:bg-yellow-700"
-                    >
-                      <Send className="mr-2 h-4 w-4" />
-                      Resend Failed
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleMarkAsRead}
-                      className="h-10 bg-blue-600 hover:bg-blue-700"
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Mark as Read
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            {/* Filter summary */}
-            {(searchQuery || statusFilter !== "all" || typeFilter !== "all" || priorityFilter !== "all") && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Filtered:</span>
-                {searchQuery && (
-                  <Badge variant="secondary" className="gap-1">
-                    Search: "{searchQuery}"
-                  </Badge>
-                )}
-                {statusFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Status: {statusFilter}
-                  </Badge>
-                )}
-                {typeFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Type: {typeFilter}
-                  </Badge>
-                )}
-                {priorityFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Priority: {priorityFilter}
-                  </Badge>
-                )}
-                <Badge variant="outline">
-                  {filteredCommunications.length} of {mockCommunications.length} communications
-                </Badge>
-                {stats.failed > 0 && (
-                  <Badge variant="outline" className="text-red-600 border-red-200">
-                    {stats.failed} failed
-                  </Badge>
-                )}
-                {stats.followUpRequired > 0 && (
-                  <Badge variant="outline" className="text-yellow-600 border-yellow-200">
-                    {stats.followUpRequired} follow-up
-                  </Badge>
-                )}
+                {/* Desktop view mode toggle */}
+                <div className="flex border rounded-md overflow-hidden ml-auto">
+                  <Button
+                    variant={viewMode === "timeline" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("timeline")}
+                    className={cn(
+                      "h-9 w-9 rounded-none border-r",
+                      viewMode === "timeline" 
+                      ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
+                      : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                    )}
+                  >
+                    <Grid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className={cn(
+                      "h-9 w-9 rounded-none",
+                      viewMode === "list" 
+                      ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
+                      : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                    )}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
+
+            {/* Actions row */}
+            <div className="flex items-center justify-between">
+              {/* Filter summary */}
+              {hasActiveFilters && (
+                <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+                  <span className="text-xs md:text-sm text-muted-foreground">Filtered:</span>
+                  {searchQuery && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      "{searchQuery}"
+                    </Badge>
+                  )}
+                  {statusFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {statusFilter}
+                    </Badge>
+                  )}
+                  {typeFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {typeFilter}
+                    </Badge>
+                  )}
+                  {priorityFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {priorityFilter}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs h-6">
+                    {filteredCommunications.length} of {mockCommunications.length}
+                  </Badge>
+                  {stats.failed > 0 && (
+                    <Badge variant="outline" className="text-xs h-6 text-red-600">
+                      {stats.failed} failed
+                    </Badge>
+                  )}
+                  {stats.followUpRequired > 0 && (
+                    <Badge variant="outline" className="text-xs h-6 text-yellow-600">
+                      {stats.followUpRequired} follow-up
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {/* Mobile view mode toggle */}
+              {isMobile && (
+                <div className="flex border rounded-md overflow-hidden">
+                  <Button
+                    variant={viewMode === "timeline" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("timeline")}
+                    className={cn(
+                      "h-8 w-8 rounded-none border-r",
+                      viewMode === "timeline" 
+                      ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
+                      : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                    )}
+                  >
+                    <Grid className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className={cn(
+                      "h-8 w-8 rounded-none",
+                      viewMode === "list" 
+                      ? "bg-[#e11d48] text-white hover:bg-[#e11d48]/80" 
+                      : "bg-transparent text-muted-foreground hover:bg-gray-100"
+                    )}
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Selected actions */}
+              {selectedCommunications.length > 0 && (
+                <div className="flex items-center gap-1 md:gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    className="h-8 md:h-9 text-xs md:text-sm"
+                  >
+                    <Download className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Export</span>
+                    <span className="sm:hidden">Exp</span>
+                    <span className="ml-1">({selectedCommunications.length})</span>
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleResend}
+                    className="h-8 md:h-9 bg-yellow-600 hover:bg-yellow-700 text-xs md:text-sm"
+                  >
+                    <Send className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Resend</span>
+                    <span className="sm:hidden">Resend</span>
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleMarkAsRead}
+                    className="h-8 md:h-9 bg-blue-600 hover:bg-blue-700 text-xs md:text-sm"
+                  >
+                    <CheckCircle className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Mark Read</span>
+                    <span className="sm:hidden">Read</span>
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         {/* Communications Display */}
         {viewMode === "list" ? (
           <Card className="border-none shadow-none">
-            <CardContent className="px-6">
-              <DataTable
-                title="Communications"
-                description="Track and manage all communications"
-                data={filteredCommunications}
-                fields={communicationFields}
-                actions={communicationActions}
-                loading={false}
-                enableSelection={true}
-                enablePagination={true}
-                pageSize={8}
-                onRowClick={handleRowClick}
-                onSelectionChange={handleSelectionChange}
-              />
+            <CardContent className={cn("p-0", isMobile ? "px-2" : "px-6")}>
+              <div className="overflow-x-auto">
+                <DataTable
+                  title="Communications"
+                  description="Track and manage all communications"
+                  data={filteredCommunications}
+                  fields={isMobile ? mobileCommunicationFields : communicationFields}
+                  actions={communicationActions}
+                  loading={false}
+                  enableSelection={isMobile ? false : true}
+                  enablePagination={true}
+                  pageSize={isMobile ? 6 : 8}
+                  onRowClick={handleRowClick}
+                  onSelectionChange={handleSelectionChange}
+                />
+              </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             {filteredCommunications.map((communication, index) => (
               <CommunicationTimelineItem 
                 key={communication.id} 
@@ -1040,10 +1212,12 @@ export default function CommunicationsPage() {
               />
             ))}
             {filteredCommunications.length === 0 && (
-              <div className="text-center py-12">
-                <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">No communications found</h3>
-                <p className="text-muted-foreground">Try adjusting your filters or search terms</p>
+              <div className="text-center py-8 md:py-12">
+                <MessageSquare className="h-8 w-8 md:h-12 md:w-12 mx-auto text-muted-foreground mb-2 md:mb-4" />
+                <h3 className="text-base md:text-lg font-semibold">No communications found</h3>
+                <p className="text-sm md:text-base text-muted-foreground">
+                  Try adjusting your filters or search terms
+                </p>
               </div>
             )}
           </div>

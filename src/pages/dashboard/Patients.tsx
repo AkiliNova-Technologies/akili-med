@@ -1,7 +1,7 @@
 // app/patients/page.tsx
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { AddPatientSheet } from "@/components/add-patient-sheet"
 import { SiteHeader } from "@/components/site-header"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,6 @@ import {
   Search, 
   Filter, 
   Download, 
-  // MoreVertical,
   User,
   Phone,
   Mail,
@@ -21,7 +20,11 @@ import {
   Activity,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  X
 } from "lucide-react"
 
 import { 
@@ -34,6 +37,7 @@ import {
 import { SectionCards, type CardData } from "@/components/section-cards"
 import { cn } from "@/lib/utils"
 import { DataTable, type TableAction, type TableField } from "@/components/data-table"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // Define patient data type
 interface Patient {
@@ -229,13 +233,13 @@ const mockPatients: Patient[] = [
   }
 ]
 
-// Table fields configuration
+// Desktop table fields configuration
 const patientFields: TableField<Patient>[] = [
   {
     key: "patientId",
     header: "Patient ID",
     cell: (value) => (
-      <span className="font-medium">
+      <span className="font-medium text-sm md:text-base">
         {value as string}
       </span>
     ),
@@ -246,33 +250,36 @@ const patientFields: TableField<Patient>[] = [
     key: "fullName",
     header: "Patient Name",
     cell: (value, row) => (
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-          <User className="h-5 w-5 text-primary" />
+      <div className="flex items-center gap-2 md:gap-3">
+        <div className="hidden md:flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-md bg-primary/10">
+          <User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
         </div>
-        <div>
-          <div className="font-medium">{value as string}</div>
-          <div className="text-sm text-muted-foreground">
+        <div className="min-w-0">
+          <div className="font-medium text-sm md:text-base truncate">{value as string}</div>
+          <div className="text-xs md:text-sm text-muted-foreground truncate">
             {row.age} yrs • {row.gender}
           </div>
         </div>
       </div>
     ),
-    width: "200px",
+    width: "180px",
     enableSorting: true,
   },
   {
     key: "contactInfo",
-    header: "Contact Information",
+    header: "Contact Info",
     cell: (_, row) => (
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Mail className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">{row.email}</span>
+      <div className="space-y-1 min-w-0">
+        <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground truncate">
+          <Mail className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{row.email}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Phone className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">{row.phone}</span>
+        <div className="md:hidden text-xs text-muted-foreground truncate">
+          {row.email}
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground truncate">
+          <Phone className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{row.phone}</span>
         </div>
       </div>
     ),
@@ -280,34 +287,34 @@ const patientFields: TableField<Patient>[] = [
   },
   {
     key: "medicalInfo",
-    header: "Medical Information",
+    header: "Medical Info",
     cell: (_, row) => (
       <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Activity className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">Blood Type: {row.bloodType}</span>
+        <div className="flex items-center gap-2 text-sm">
+          <Activity className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span>Blood: {row.bloodType}</span>
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-xs md:text-sm text-muted-foreground truncate hidden md:block">
           Dr. {row.primaryDoctor.split("Dr. ")[1]}
         </div>
       </div>
     ),
-    width: "180px",
+    width: "150px",
   },
   {
     key: "appointments",
     header: "Appointments",
     cell: (_, row) => (
-      <div className="space-y-1">
-        <div className="text-sm">
-          <span className="text-muted-foreground">Last:</span>{" "}
-          {row.lastVisit ? new Date(row.lastVisit).toLocaleDateString() : "Never"}
+      <div className="space-y-1 hidden md:block">
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">Last: {row.lastVisit ? new Date(row.lastVisit).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "Never"}</span>
         </div>
-        <div className="text-sm">
-          <span className="text-muted-foreground">Next:</span>{" "}
-          {row.nextAppointment 
-            ? new Date(row.nextAppointment).toLocaleDateString() 
-            : "Not scheduled"}
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">Next: {row.nextAppointment 
+            ? new Date(row.nextAppointment).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : "Not scheduled"}</span>
         </div>
       </div>
     ),
@@ -320,14 +327,29 @@ const patientFields: TableField<Patient>[] = [
     cell: (value) => {
       const status = value as Patient["status"]
       const statusConfig = {
-        active: { label: "Active", variant: "outline" as const, color: "bg-green-500" },
-        inactive: { label: "Inactive", variant: "outline" as const, color: "bg-gray-500" },
-        pending: { label: "Pending", variant: "outline" as const, color: "bg-yellow-500" }
+        active: { 
+          label: "Active", 
+          variant: "outline" as const, 
+          color: "bg-green-500",
+          icon: <CheckCircle className="h-3 w-3" />
+        },
+        inactive: { 
+          label: "Inactive", 
+          variant: "outline" as const, 
+          color: "bg-gray-500",
+          icon: <Clock className="h-3 w-3" />
+        },
+        pending: { 
+          label: "Pending", 
+          variant: "outline" as const, 
+          color: "bg-yellow-500",
+          icon: <AlertCircle className="h-3 w-3" />
+        }
       }
       const config = statusConfig[status]
       return (
-        <Badge variant={config.variant} className="gap-1 px-3 rounded-sm">
-          <div className={`h-1.5 w-1.5 rounded-full ${config.color}`} />
+        <Badge variant={config.variant} className="gap-1 px-2 md:px-3 text-xs md:text-sm rounded-sm">
+          <span className="hidden md:inline">{config.icon}</span>
           {config.label}
         </Badge>
       )
@@ -338,23 +360,84 @@ const patientFields: TableField<Patient>[] = [
   },
   {
     key: "medicalStatus",
-    header: "Health Status",
+    header: "Health",
     cell: (value) => {
       const status = value as Patient["medicalStatus"]
       const statusConfig = {
-        stable: { label: "Stable", variant: "outline" as const, color: "text-green-600" },
-        critical: { label: "Critical", variant: "outline" as const, color: "text-red-600" },
-        recovering: { label: "Recovering", variant: "outline" as const, color: "text-blue-600" }
+        stable: { 
+          label: "Stable", 
+          variant: "outline" as const, 
+          color: "text-green-600" 
+        },
+        critical: { 
+          label: "Critical", 
+          variant: "outline" as const, 
+          color: "text-red-600" 
+        },
+        recovering: { 
+          label: "Recovering", 
+          variant: "outline" as const, 
+          color: "text-blue-600" 
+        }
       }
       const config = statusConfig[status]
       return (
-        <Badge variant={config.variant} className={cn(config.color, "rounded-sm px-3")}>
+        <Badge variant={config.variant} className={cn(config.color, "rounded-sm px-2 md:px-3 text-xs md:text-sm hidden md:block")}>
           {config.label}
         </Badge>
       )
     },
-    width: "120px",
+    width: "100px",
     align: "center",
+    enableSorting: true,
+  },
+]
+
+// Mobile table fields (simplified view)
+const mobilePatientFields: TableField<Patient>[] = [
+  {
+    key: "patientInfo",
+    header: "Patient",
+    cell: (_, row) => (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="font-medium text-sm">{row.patientId}</span>
+          <Badge variant="outline" className="text-xs">
+            {row.status}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+            <User className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium text-sm truncate">{row.fullName}</div>
+            <div className="text-xs text-muted-foreground">
+              {row.age} yrs • {row.gender} • {row.bloodType}
+            </div>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground truncate">
+          <Mail className="inline h-3 w-3 mr-1" />
+          {row.email}
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <Badge variant="outline" className={cn(
+            row.medicalStatus === "critical" ? "text-red-600" :
+            row.medicalStatus === "recovering" ? "text-blue-600" :
+            "text-green-600",
+            "text-xs"
+          )}>
+            {row.medicalStatus}
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            Next: {row.nextAppointment 
+              ? new Date(row.nextAppointment).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : "No appt"}
+          </span>
+        </div>
+      </div>
+    ),
     enableSorting: true,
   },
 ]
@@ -362,13 +445,13 @@ const patientFields: TableField<Patient>[] = [
 // Search input component
 function SearchInput({ className, ...props }: React.ComponentProps<"input">) {
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         type="search"
-        className={cn("pl-10", className)}
-        placeholder="Search patients by name, ID, email..."
-        {...props}  // This spreads all props including onChange, value, etc.
+        className={cn("pl-10 w-full text-sm md:text-base", className)}
+        placeholder="Search patients..."
+        {...props}
       />
     </div>
   )
@@ -391,10 +474,12 @@ export default function PatientsPage() {
   const [medicalStatusFilter, setMedicalStatusFilter] = useState<string>("all")
   const [genderFilter, setGenderFilter] = useState<string>("all")
   const [selectedPatients, setSelectedPatients] = useState<Patient[]>([])
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
+  
+  const isMobile = useIsMobile()
 
   // Filter patients based on search and filters
   const filteredPatients = mockPatients.filter((patient) => {
-    // Search filter
     const searchLower = searchQuery.toLowerCase()
     const matchesSearch = 
       !searchQuery ||
@@ -403,15 +488,12 @@ export default function PatientsPage() {
       patient.email.toLowerCase().includes(searchLower) ||
       patient.phone.includes(searchQuery)
 
-    // Status filter
     const matchesStatus = 
       statusFilter === "all" || patient.status === statusFilter
 
-    // Medical status filter
     const matchesMedicalStatus = 
       medicalStatusFilter === "all" || patient.medicalStatus === medicalStatusFilter
 
-    // Gender filter
     const matchesGender = 
       genderFilter === "all" || patient.gender.toLowerCase() === genderFilter
 
@@ -479,101 +561,176 @@ export default function PatientsPage() {
       type: "view",
       label: "View Patient",
       icon: <Eye className="size-4" />,
-      onClick: (patient) => {
-        console.log("View patient:", patient)
-        // Navigate to patient details
-      },
+      onClick: (patient) => console.log("View patient:", patient),
     },
     {
       type: "edit",
       label: "Edit Patient",
       icon: <Edit className="size-4" />,
-      onClick: (patient) => {
-        console.log("Edit patient:", patient)
-        // Open edit modal
-      },
+      onClick: (patient) => console.log("Edit patient:", patient),
     },
     {
       type: "delete",
       label: "Delete Patient",
       icon: <Trash2 className="size-4" />,
-      onClick: (patient) => {
-        console.log("Delete patient:", patient)
-        // Show delete confirmation
-      },
-      disabled: (patient) => patient.medicalStatus === "critical", // Fixed: comparing medicalStatus, not status
+      onClick: (patient) => console.log("Delete patient:", patient),
+      disabled: (patient) => patient.medicalStatus === "critical",
     },
   ]
 
-  // Handle row click
-  const handleRowClick = (patient: Patient) => {
+  const handleRowClick = useCallback((patient: Patient) => {
     console.log("Row clicked:", patient)
-    // Navigate to patient details
-  }
+  }, [])
 
-  // Handle selection change
-  const handleSelectionChange = (selected: Patient[]) => {
+  const handleSelectionChange = useCallback((selected: Patient[]) => {
     setSelectedPatients(selected)
-    console.log("Selected patients:", selected.length)
-  }
+  }, [])
 
-  // Export selected patients
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     if (selectedPatients.length === 0) {
       alert("Please select patients to export")
       return
     }
     console.log("Exporting patients:", selectedPatients)
-    // Implement export logic
-  }
+  }, [selectedPatients])
 
-  // Clear all filters
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchQuery("")
     setStatusFilter("all")
     setMedicalStatusFilter("all")
     setGenderFilter("all")
-  }
+  }, [])
+
+  const hasActiveFilters = searchQuery || statusFilter !== "all" || medicalStatusFilter !== "all" || genderFilter !== "all"
 
   return (
     <>
       <SiteHeader
         rightActions={
           <Button
-          variant={"secondary"} 
-            className="h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white"
+            variant={"secondary"} 
+            className="h-9 w-full md:h-11 bg-[#e11d48] hover:bg-[#e11d48]/80 font-semibold text-white text-sm md:text-base"
             onClick={() => setSheetOpen(true)}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Patient
+            <Plus className="mr-1 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+            <span className="sm:inline">Add Patient</span>
           </Button>
         }
       />
       
-      <div className="min-h-screen p-6">
-        {/* Stats Overview using SectionCards */}
-        <div className="mb-6">
+      <div className="min-h-screen p-3 sm:p-4 md:p-6">
+        {/* Stats Overview - Responsive grid */}
+        <div className="mb-4 md:mb-6">
           <SectionCards
             cards={patientStatsCards}
-            layout="1x4"
-            className="gap-4"
+            layout={isMobile ? "2x2" : "1x4"}
+            className="gap-2 md:gap-4"
           />
         </div>
 
-        {/* Search and Filters */}
-        <Card className="mb-6 border-none shadow-none">
-          <CardContent className="p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-1 flex-col gap-4 sm:flex-row">
+        {/* Search and Filters - Mobile optimized */}
+        <Card className="mb-4 md:mb-6 border-none shadow-none p-0 pt-2">
+          <CardContent className="p-3 md:p-4 lg:p-6">
+            {/* Top row: Search and Filter toggle */}
+            <div className="flex flex-col gap-3 mb-3 md:mb-4">
+              <div className="flex items-center gap-2">
                 <SearchInput
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="sm:w-[450px]"
+                  className="flex-1"
                 />
                 
+                {/* Mobile filter toggle */}
+                {isMobile && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 flex-shrink-0"
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              {/* Mobile filters panel */}
+              {isMobile && showMobileFilters && (
+                <div className="space-y-2 p-2 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Filters</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={medicalStatusFilter} onValueChange={setMedicalStatusFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Health Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Health Status</SelectItem>
+                      <SelectItem value="stable">Stable</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="recovering">Recovering</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={genderFilter} onValueChange={setGenderFilter}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Gender</SelectItem>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setShowMobileFilters(false)}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop filters row */}
+            {!isMobile && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 <div className="flex flex-wrap gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <Filter className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -586,7 +743,7 @@ export default function PatientsPage() {
                   </Select>
                   
                   <Select value={medicalStatusFilter} onValueChange={setMedicalStatusFilter}>
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-[160px] text-sm">
                       <Activity className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Health Status" />
                     </SelectTrigger>
@@ -599,7 +756,7 @@ export default function PatientsPage() {
                   </Select>
                   
                   <Select value={genderFilter} onValueChange={setGenderFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[140px] text-sm">
                       <User className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Gender" />
                     </SelectTrigger>
@@ -610,88 +767,90 @@ export default function PatientsPage() {
                     </SelectContent>
                   </Select>
                   
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="h-10"
-                  >
-                    Clear Filters
-                  </Button>
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-9 text-sm"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                {selectedPatients.length > 0 && (
+            )}
+
+            {/* Actions row */}
+            <div className="flex items-center justify-between">
+              {/* Filter summary */}
+              {hasActiveFilters && (
+                <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+                  <span className="text-xs md:text-sm text-muted-foreground">Filtered:</span>
+                  {searchQuery && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      "{searchQuery}"
+                    </Badge>
+                  )}
+                  {statusFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {statusFilter}
+                    </Badge>
+                  )}
+                  {medicalStatusFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {medicalStatusFilter}
+                    </Badge>
+                  )}
+                  {genderFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {genderFilter}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs h-6">
+                    {filteredPatients.length} of {mockPatients.length}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Selected actions */}
+              {selectedPatients.length > 0 && (
+                <div className="flex items-center gap-1 md:gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleExport}
-                    className="h-10"
+                    className="h-8 md:h-9 text-xs md:text-sm"
                   >
-                    <Download className="mr-2 h-4 w-4" />
-                    Export ({selectedPatients.length})
+                    <Download className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Export</span>
+                    <span className="sm:hidden">Exp</span>
+                    <span className="ml-1">({selectedPatients.length})</span>
                   </Button>
-                )}
-                {/* <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-10"
-                  onClick={() => console.log("More options")}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button> */}
-              </div>
+                </div>
+              )}
             </div>
-            
-            {/* Filter summary */}
-            {(searchQuery || statusFilter !== "all" || medicalStatusFilter !== "all" || genderFilter !== "all") && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Filtered:</span>
-                {searchQuery && (
-                  <Badge variant="secondary" className="gap-1">
-                    Search: "{searchQuery}"
-                  </Badge>
-                )}
-                {statusFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Status: {statusFilter}
-                  </Badge>
-                )}
-                {medicalStatusFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Health: {medicalStatusFilter}
-                  </Badge>
-                )}
-                {genderFilter !== "all" && (
-                  <Badge variant="secondary" className="gap-1">
-                    Gender: {genderFilter}
-                  </Badge>
-                )}
-                <Badge variant="outline">
-                  {filteredPatients.length} of {mockPatients.length} patients
-                </Badge>
-              </div>
-            )}
           </CardContent>
         </Card>
 
         {/* Patients Table */}
         <Card className="border-none shadow-none">
-          <CardContent className="px-6">
-            <DataTable
-              title="Patients"
-              description="Manage and view all patient records"
-              data={filteredPatients}
-              fields={patientFields}
-              actions={patientActions}
-              loading={false}
-              enableSelection={true}
-              enablePagination={true}
-              pageSize={8}
-              onRowClick={handleRowClick}
-              onSelectionChange={handleSelectionChange}
-            />
+          <CardContent className={cn("p-0", isMobile ? "px-2" : "px-6")}>
+            <div className="overflow-x-auto">
+              <DataTable
+                title="Patients"
+                description="Manage and view all patient records"
+                data={filteredPatients}
+                fields={isMobile ? mobilePatientFields : patientFields}
+                actions={patientActions}
+                loading={false}
+                enableSelection={isMobile ? false : true}
+                enablePagination={true}
+                pageSize={isMobile ? 6 : 8}
+                onRowClick={handleRowClick}
+                onSelectionChange={handleSelectionChange}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
