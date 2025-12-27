@@ -93,12 +93,6 @@ export default function LoginPage() {
           </div>
         </div>
         
-        {/* Optional: Demo credentials info */}
-        <div className="mt-4 text-center text-sm text-muted-foreground">
-          <p>Demo credentials:</p>
-          <p className="mt-1">admin@example.com / password123</p>
-          <p className="mt-1">doctor@example.com / password123</p>
-        </div>
       </div>
       <div className="bg-muted relative hidden lg:block">
         <img
