@@ -23,7 +23,6 @@ export function NavUser() {
 
   const handleLogout = async () => {
     await signout();
-    window.location.href = "/login";
   };
 
   if (!user) {
@@ -70,7 +69,7 @@ export function NavUser() {
               </Link>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className="h-11 rounded-none cursor-pointer"
               onClick={handleLogout}
             >
