@@ -1,8 +1,8 @@
-// app/patients/page.tsx
+// app/doctors/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { AddPatientSheet } from "@/components/add-patient-sheet";
+import { AddDoctorSheet } from "@/components/add-doctor-sheet";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +16,6 @@ import {
   User,
   Phone,
   Mail,
-  Calendar,
   Activity,
   Eye,
   Edit,
@@ -26,6 +25,11 @@ import {
   AlertCircle,
   X,
   RefreshCw,
+  Stethoscope,
+  Hospital,
+  DollarSign,
+  Star,
+  GraduationCap,
 } from "lucide-react";
 
 import {
@@ -43,20 +47,17 @@ import {
   type TableField,
 } from "@/components/data-table";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useReduxPatients } from "@/hooks/useReduxPatients";
-import { Gender, type Patient as PatientType } from "@/types/patients";
-import { format } from "date-fns";
+import { useReduxDoctors } from "@/hooks/useReduxDoctors";
+import { type Doctor as DoctorType } from "@/types/doctors";
 import { toast } from "sonner";
 
-// Update Patient interface to match Redux Patient type
-interface Patient extends PatientType {
-  patientId?: string;
+// Update Doctor interface
+interface Doctor extends DoctorType {
+  doctorId?: string;
   fullName: string;
-  age?: number;
-  lastVisit?: string;
-  nextAppointment?: string;
-  medicalStatus?: "stable" | "critical" | "recovering";
-  primaryDoctor?: string;
+  experienceLevel?: "New" | "Junior" | "Experienced" | "Senior" | "Veteran";
+  status: "active" | "inactive";
+  availability?: "available" | "busy" | "on-leave";
 }
 
 // Search input component
@@ -67,251 +68,238 @@ function SearchInput({ className, ...props }: React.ComponentProps<"input">) {
       <Input
         type="search"
         className={cn("pl-10 w-full text-sm md:text-base", className)}
-        placeholder="Search patients..."
+        placeholder="Search doctors..."
         {...props}
       />
     </div>
   );
 }
 
-// Helper function to calculate age from date of birth
-const calculateAge = (dateOfBirth?: string): number | null => {
-  if (!dateOfBirth) return null;
-  const birthDate = new Date(dateOfBirth);
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-
-  if (
-    monthDiff < 0 ||
-    (monthDiff === 0 && today.getDate() < birthDate.getDate())
-  ) {
-    age--;
-  }
-
-  return age;
+// Helper to calculate experience level
+const getExperienceLevel = (
+  years?: number
+): "New" | "Junior" | "Experienced" | "Senior" | "Veteran" => {
+  if (!years) return "New";
+  if (years < 3) return "Junior";
+  if (years < 10) return "Experienced";
+  if (years < 20) return "Senior";
+  return "Veteran";
 };
 
-// Helper to get medical status based on recent appointments/conditions
-const getMedicalStatus = (
-  patient: PatientType
-): "stable" | "critical" | "recovering" => {
-  // This is a simplified logic - you should implement based on your actual data
-  if (patient.appointments?.some((app) => app.status === "IN_PROGRESS")) {
-    return "critical";
-  }
-  if (
-    patient.appointments?.some(
-      (app) =>
-        new Date(app.date) > new Date() &&
-        ["SCHEDULED", "CONFIRMED"].includes(app.status)
-    )
-  ) {
-    return "recovering";
-  }
-  return "stable";
-};
-
-// Helper to get last appointment date
-const getLastVisit = (patient: PatientType): string | undefined => {
-  if (!patient.appointments || patient.appointments.length === 0)
-    return undefined;
-  const sortedAppointments = [...patient.appointments].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-  return sortedAppointments[0]?.date;
-};
-
-// Helper to get next appointment date
-const getNextAppointment = (patient: PatientType): string | undefined => {
-  if (!patient.appointments || patient.appointments.length === 0)
-    return undefined;
+// Helper to get availability status
+const getAvailability = (
+  doctor: DoctorType
+): "available" | "busy" | "on-leave" => {
+  // Simplified logic - in real app, check schedule
   const now = new Date();
-  const futureAppointments = patient.appointments
-    .filter(
-      (app) =>
-        new Date(app.date) > now &&
-        ["SCHEDULED", "CONFIRMED"].includes(app.status)
-    )
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  return futureAppointments[0]?.date;
+  const hasAppointmentsNow = doctor.appointments?.some((app) => {
+    const appDate = new Date(app.date);
+    return (
+      appDate.getDate() === now.getDate() &&
+      appDate.getMonth() === now.getMonth() &&
+      appDate.getFullYear() === now.getFullYear() &&
+      ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes(app.status)
+    );
+  });
+
+  if (!doctor.isActive) return "on-leave";
+  if (hasAppointmentsNow) return "busy";
+  return "available";
 };
 
-// Helper function to format blood type
-const formatBloodType = (bloodType: string | undefined): string => {
-  if (!bloodType) return "Unknown";
-
-  const bloodTypeMap: Record<string, string> = {
-    O_POSITIVE: "O+",
-    O_NEGATIVE: "O-",
-    A_POSITIVE: "A+",
-    A_NEGATIVE: "A-",
-    B_POSITIVE: "B+",
-    B_NEGATIVE: "B-",
-    AB_POSITIVE: "AB+",
-    AB_NEGATIVE: "AB-",
-    "O+": "O+",
-    "O-": "O-",
-    "A+": "A+",
-    "A-": "A-",
-    "B+": "B+",
-    "B-": "B-",
-    "AB+": "AB+",
-    "AB-": "AB-",
-  };
-
-  return bloodTypeMap[bloodType] || bloodType;
+// Helper to get upcoming appointments count
+const getUpcomingAppointments = (doctor: DoctorType): number => {
+  const now = new Date();
+  return (
+    doctor.appointments?.filter((app) => {
+      const appDate = new Date(app.date);
+      return appDate > now && ["SCHEDULED", "CONFIRMED"].includes(app.status);
+    }).length || 0
+  );
 };
 
-export default function PatientsPage() {
+// Helper to format consultation fee
+const formatConsultationFee = (fee?: string): string => {
+  if (!fee) return "Not specified";
+  const amount = parseFloat(fee);
+  if (isNaN(amount)) return fee;
+  return `$${amount.toFixed(2)}`;
+};
+
+// Helper to check license expiry
+const checkLicenseExpiry = (
+  expiryDate?: string
+): { status: "valid" | "expired" | "expiring"; days: number } => {
+  if (!expiryDate) return { status: "valid", days: Infinity };
+
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  const daysUntilExpiry = Math.ceil(
+    (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (daysUntilExpiry < 0)
+    return { status: "expired", days: Math.abs(daysUntilExpiry) };
+  if (daysUntilExpiry <= 30)
+    return { status: "expiring", days: daysUntilExpiry };
+  return { status: "valid", days: daysUntilExpiry };
+};
+
+export default function DoctorsPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [medicalStatusFilter, setMedicalStatusFilter] = useState<string>("all");
-  const [genderFilter, setGenderFilter] = useState<string>("all");
-  const [selectedPatients, setSelectedPatients] = useState<Patient[]>([]);
+  const [specializationFilter, setSpecializationFilter] =
+    useState<string>("all");
+  const [hospitalFilter, setHospitalFilter] = useState<string>("all");
+  const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
+  const [selectedDoctors, setSelectedDoctors] = useState<Doctor[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const isMobile = useIsMobile();
 
-  // Use Redux patients hook
+  // Use Redux doctors hook
   const {
-    patients,
+    doctors,
     loading,
     error,
     pagination,
-    getPatients,
-    getStats,
-    getPatient,
-    removePatient,
+    getDoctors,
+
+    getDoctor,
+    removeDoctor,
+    toggleAvailability,
     updateFilters,
     resetFilters,
-  } = useReduxPatients();
+  } = useReduxDoctors();
 
-  // Transform patients data for the table
-  const tablePatients: Patient[] = useMemo(() => {
-    return patients.map((patient) => {
-      const age = calculateAge(patient.dateOfBirth);
-      const lastVisit = getLastVisit(patient);
-      const nextAppointment = getNextAppointment(patient);
-      const medicalStatus = getMedicalStatus(patient);
-
-      // Get primary doctor from recent appointments
-      const primaryDoctor = patient.appointments?.[0]?.doctor
-        ? `Dr. ${patient.appointments[0].doctor.firstName} ${patient.appointments[0].doctor.lastName}`
-        : "Not assigned";
+  // Transform doctors data for the table
+  const tableDoctors: Doctor[] = useMemo(() => {
+    return doctors.map((doctor) => {
+      const experienceLevel = getExperienceLevel(doctor.yearsOfExperience);
+      const availability = getAvailability(doctor);
+      const upcomingAppointments = getUpcomingAppointments(doctor);
+      const licenseStatus = checkLicenseExpiry(doctor.licenseExpiryDate);
 
       return {
-        ...patient,
-        patientId: `PAT-${patient.id.slice(0, 8).toUpperCase()}`,
-        fullName: `${patient.firstName} ${patient.lastName}`,
-        age: age || undefined,
-        lastVisit,
-        nextAppointment,
-        medicalStatus,
-        primaryDoctor,
-        status: patient.isActive ? "active" : ("inactive" as const),
-        bloodType: "Unknown", // You might want to add this field to your Patient model
+        ...doctor,
+        doctorId: `DR-${doctor.id.slice(0, 8).toUpperCase()}`,
+        fullName: `${doctor.title || ""} ${doctor.firstName} ${
+          doctor.lastName
+        }`.trim(),
+        experienceLevel,
+        status: doctor.isActive ? "active" : ("inactive" as const),
+        availability,
+        upcomingAppointments,
+        licenseStatus,
       };
     });
-  }, [patients]);
+  }, [doctors]);
 
-  // Filter patients based on search and filters
-  const filteredPatients = useMemo(() => {
-    return tablePatients.filter((patient) => {
+  // Filter doctors based on search and filters
+  const filteredDoctors = useMemo(() => {
+    return tableDoctors.filter((doctor) => {
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch =
         !searchQuery ||
-        patient.fullName.toLowerCase().includes(searchLower) ||
-        patient.patientId?.toLowerCase().includes(searchLower) ||
-        patient.email.toLowerCase().includes(searchLower) ||
-        patient.phone.includes(searchQuery);
+        doctor.fullName.toLowerCase().includes(searchLower) ||
+        doctor.doctorId?.toLowerCase().includes(searchLower) ||
+        doctor.email.toLowerCase().includes(searchLower) ||
+        doctor.phone?.toLowerCase().includes(searchLower) ||
+        doctor.specialization?.toLowerCase().includes(searchLower) ||
+        doctor.specialty?.toLowerCase().includes(searchLower) ||
+        doctor.medicalLicense?.toLowerCase().includes(searchLower);
 
       const matchesStatus =
-        statusFilter === "all" || patient.status === statusFilter;
+        statusFilter === "all" || doctor.status === statusFilter;
 
-      const matchesMedicalStatus =
-        medicalStatusFilter === "all" ||
-        patient.medicalStatus === medicalStatusFilter;
+      const matchesSpecialization =
+        specializationFilter === "all" ||
+        doctor.specialization === specializationFilter ||
+        doctor.specialty === specializationFilter;
 
-      const matchesGender =
-        genderFilter === "all" ||
-        patient.gender?.toLowerCase() === genderFilter;
+      const matchesHospital =
+        hospitalFilter === "all" || doctor.hospital === hospitalFilter;
+
+      const matchesAvailability =
+        availabilityFilter === "all" ||
+        doctor.availability === availabilityFilter;
 
       return (
-        matchesSearch && matchesStatus && matchesMedicalStatus && matchesGender
+        matchesSearch &&
+        matchesStatus &&
+        matchesSpecialization &&
+        matchesHospital &&
+        matchesAvailability
       );
     });
   }, [
-    tablePatients,
+    tableDoctors,
     searchQuery,
     statusFilter,
-    medicalStatusFilter,
-    genderFilter,
+    specializationFilter,
+    hospitalFilter,
+    availabilityFilter,
   ]);
 
+  // Calculate stats
   const stats = useMemo(() => {
-    if (patients.length === 0) {
+    if (doctors.length === 0) {
       return {
         total: 0,
         active: 0,
-        critical: 0,
+        onDuty: 0,
         upcomingAppointments: 0,
-        pending: 0,
-        recovering: 0,
+        specializations: 0,
+        criticalLicenses: 0,
       };
     }
 
-    // Calculate stats from patients data
-    const total = patients.length;
-    const active = patients.filter((p) => p.isActive).length;
-    const upcomingAppointments = patients.filter((p) =>
-      p.appointments?.some((app) => {
-        const now = new Date();
-        const appDate = new Date(app.date);
-        return appDate > now && ["SCHEDULED", "CONFIRMED"].includes(app.status);
-      })
+    const total = doctors.length;
+    const active = doctors.filter((d) => d.isActive).length;
+    const onDuty = doctors.filter(
+      (d) => getAvailability(d) === "available"
     ).length;
+    const upcomingAppointments = doctors.reduce(
+      (acc, doctor) => acc + getUpcomingAppointments(doctor),
+      0
+    );
 
-    // Calculate critical cases (patients with IN_PROGRESS appointments)
-    const critical = patients.filter((p) =>
-      p.appointments?.some((app) => app.status === "IN_PROGRESS")
-    ).length;
+    // Count unique specializations
+    const specializationsSet = new Set(
+      doctors
+        .map((d) => d.specialization)
+        .filter(Boolean)
+        .concat(doctors.map((d) => d.specialty).filter(Boolean))
+    );
 
-    // Calculate recovering (patients with future appointments)
-    const recovering = patients.filter((p) =>
-      p.appointments?.some((app) => {
-        const now = new Date();
-        const appDate = new Date(app.date);
-        return appDate > now && ["SCHEDULED", "CONFIRMED"].includes(app.status);
-      })
-    ).length;
-
-    // Pending invoices - you might need to fetch this separately
-    const pending = 0; // Placeholder
+    const criticalLicenses = doctors.filter((d) => {
+      const status = checkLicenseExpiry(d.licenseExpiryDate);
+      return status.status === "expired" || status.status === "expiring";
+    }).length;
 
     return {
       total,
       active,
-      critical,
+      onDuty,
       upcomingAppointments,
-      pending,
-      recovering,
+      specializations: specializationsSet.size,
+      criticalLicenses,
     };
-  }, [patients]);
+  }, [doctors]);
 
-  // Load patients and stats on mount
+  // Load doctors on mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        await getPatients({ page: 1, limit: 50 });
+        await getDoctors({ page: 1, limit: 50 });
       } catch (error) {
-        console.error("Failed to load patients:", error);
+        console.error("Failed to load doctors:", error);
       }
     };
 
     loadData();
-  }, [getPatients, getStats]);
+  }, [getDoctors]);
 
   // Handle search with debounce
   useEffect(() => {
@@ -326,63 +314,72 @@ export default function PatientsPage() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, updateFilters, resetFilters]);
 
+  // Get unique specializations and hospitals for filters
+  const uniqueSpecializations = useMemo(() => {
+    const allSpecs = doctors
+      .map((d) => d.specialization)
+      .filter(Boolean)
+      .concat(doctors.map((d) => d.specialty).filter(Boolean));
+    return Array.from(new Set(allSpecs)).sort();
+  }, [doctors]);
+
   // Card data for SectionCards
-  const patientStatsCards: CardData[] = [
+  const doctorStatsCards: CardData[] = [
     {
-      title: "Total Patients",
+      title: "Total Doctors",
       value: stats.total.toString(),
       icon: <User className="size-4" />,
       iconBgColor: "bg-blue-400 dark:bg-blue-900/20",
-      footerDescription: "All registered patients",
+      footerDescription: "All registered doctors",
       change: {
-        value: "12%",
+        value: "8%",
         trend: "up",
         description: "from last month",
       },
     },
     {
-      title: "Active Patients",
+      title: "Active Doctors",
       value: stats.active.toString(),
       icon: <Activity className="size-4" />,
       iconBgColor: "bg-green-400 dark:bg-green-900/20",
-      footerDescription: "Currently active patients",
+      footerDescription: "Currently active",
       change: {
-        value: "8%",
+        value: "5%",
         trend: "up",
         description: "from last week",
       },
     },
     {
-      title: "Critical Cases",
-      value: stats.critical.toString(),
-      icon: <Activity className="size-4" />,
-      iconBgColor: "bg-red-400 dark:bg-red-900/20",
-      footerDescription: "Requires immediate attention",
+      title: "On Duty",
+      value: stats.onDuty.toString(),
+      icon: <Stethoscope className="size-4" />,
+      iconBgColor: "bg-purple-400 dark:bg-purple-900/20",
+      footerDescription: "Available now",
       change: {
-        value: "3%",
-        trend: "down",
+        value: "12%",
+        trend: "up",
         description: "from yesterday",
       },
     },
     {
-      title: "Upcoming Appointments",
-      value: stats.upcomingAppointments.toString(),
-      icon: <Calendar className="size-4" />,
-      iconBgColor: "bg-purple-400 dark:bg-purple-900/20",
-      footerDescription: "Scheduled appointments",
+      title: "Specializations",
+      value: stats.specializations.toString(),
+      icon: <GraduationCap className="size-4" />,
+      iconBgColor: "bg-amber-400 dark:bg-amber-900/20",
+      footerDescription: "Unique specializations",
       change: {
-        value: "5",
+        value: "3",
         trend: "up",
-        description: "this week",
+        description: "new added",
       },
     },
   ];
 
   // Desktop table fields configuration
-  const patientFields: TableField<Patient>[] = [
+  const doctorFields: TableField<Doctor>[] = [
     {
-      key: "patientId",
-      header: "Patient ID",
+      key: "doctorId",
+      header: "Doctor ID",
       cell: (value) => (
         <span className="font-medium text-sm md:text-base">
           {value as string}
@@ -393,7 +390,7 @@ export default function PatientsPage() {
     },
     {
       key: "fullName",
-      header: "Patient Name",
+      header: "Doctor Name",
       cell: (value, row) => (
         <div className="flex items-center gap-2 md:gap-3">
           <div className="hidden md:flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-md bg-primary/10">
@@ -403,14 +400,34 @@ export default function PatientsPage() {
             <div className="font-medium text-sm md:text-base truncate">
               {value as string}
             </div>
-            <div className="text-xs md:text-sm text-muted-foreground truncate">
-              {row.age || "?"} yrs • {row.gender || "Not specified"}
+            <div className="text-xs md:text-sm text-muted-foreground truncate flex items-center gap-2">
+              <Stethoscope className="h-3 w-3" />
+              <span>{row.specialization || row.specialty || "General"}</span>
             </div>
           </div>
         </div>
       ),
-      width: "180px",
+      width: "200px",
       enableSorting: true,
+    },
+    {
+      key: "professionalInfo",
+      header: "Professional Info",
+      cell: (_, row) => (
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground truncate">
+            <DollarSign className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">
+              {formatConsultationFee(row.consultationFee)}
+            </span>
+          </div>
+          <div className="text-xs md:text-sm text-muted-foreground truncate hidden md:block">
+            <Star className="inline h-3 w-3 mr-1" />
+            {row.experienceLevel} ({row.yearsOfExperience || 0} yrs)
+          </div>
+        </div>
+      ),
+      width: "180px",
     },
     {
       key: "contactInfo",
@@ -424,66 +441,51 @@ export default function PatientsPage() {
           <div className="md:hidden text-xs text-muted-foreground truncate">
             {row.email}
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground truncate">
-            <Phone className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{row.phone}</span>
-          </div>
+          {row.phone && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground truncate">
+              <Phone className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{row.phone}</span>
+            </div>
+          )}
         </div>
       ),
       width: "200px",
     },
     {
-      key: "medicalInfo",
-      header: "Medical Info",
+      key: "licenseInfo",
+      header: "License Info",
       cell: (_, row) => {
-        const formattedBloodType = formatBloodType(row.bloodType);
+        const licenseStatus =
+          row.licenseStatus || checkLicenseExpiry(row.licenseExpiryDate);
         return (
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-sm">
               <Activity className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-              <span>Blood: {formattedBloodType}</span>
+              <span
+                className={cn(
+                  licenseStatus.status === "expired"
+                    ? "text-red-600"
+                    : licenseStatus.status === "expiring"
+                    ? "text-amber-600"
+                    : "text-green-600"
+                )}
+              >
+                {licenseStatus.status.charAt(0).toUpperCase() +
+                  licenseStatus.status.slice(1)}
+              </span>
             </div>
             <div className="text-xs md:text-sm text-muted-foreground truncate hidden md:block">
-              {row.primaryDoctor || "No doctor assigned"}
+              {row.medicalLicense || "No license"}
             </div>
           </div>
         );
       },
-      width: "150px",
-    },
-    {
-      key: "appointments",
-      header: "Appointments",
-      cell: (_, row) => (
-        <div className="space-y-1 hidden md:block">
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-            <span className="truncate">
-              Last:{" "}
-              {row.lastVisit
-                ? format(new Date(row.lastVisit), "MMM dd")
-                : "Never"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-            <span className="truncate">
-              Next:{" "}
-              {row.nextAppointment
-                ? format(new Date(row.nextAppointment), "MMM dd")
-                : "Not scheduled"}
-            </span>
-          </div>
-        </div>
-      ),
-      width: "160px",
-      enableSorting: true,
+      width: "140px",
     },
     {
       key: "status",
       header: "Status",
       cell: (_value, row) => {
-        const status = row.isActive ? "active" : "inactive";
         const statusConfig = {
           active: {
             label: "Active",
@@ -497,14 +499,8 @@ export default function PatientsPage() {
             color: "bg-gray-500",
             icon: <Clock className="h-3 w-3" />,
           },
-          pending: {
-            label: "Pending",
-            variant: "outline" as const,
-            color: "bg-yellow-500",
-            icon: <AlertCircle className="h-3 w-3" />,
-          },
         };
-        const config = statusConfig[status];
+        const config = statusConfig[row.status];
         return (
           <Badge
             variant={config.variant}
@@ -520,58 +516,63 @@ export default function PatientsPage() {
       enableSorting: true,
     },
     {
-      key: "medicalStatus",
-      header: "Health",
+      key: "availability",
+      header: "Availability",
       cell: (value) => {
-        const status = value as Patient["medicalStatus"];
-        const statusConfig = {
-          stable: {
-            label: "Stable",
+        const availability = value as Doctor["availability"];
+        const availabilityConfig = {
+          available: {
+            label: "Available",
             variant: "outline" as const,
             color: "text-green-600",
+            icon: <CheckCircle className="h-3 w-3" />,
           },
-          critical: {
-            label: "Critical",
+          busy: {
+            label: "Busy",
+            variant: "outline" as const,
+            color: "text-amber-600",
+            icon: <Clock className="h-3 w-3" />,
+          },
+          "on-leave": {
+            label: "On Leave",
             variant: "outline" as const,
             color: "text-red-600",
-          },
-          recovering: {
-            label: "Recovering",
-            variant: "outline" as const,
-            color: "text-blue-600",
+            icon: <AlertCircle className="h-3 w-3" />,
           },
         };
-        const config = statusConfig[status || "stable"];
+        const config = availabilityConfig[availability || "available"];
         return (
           <Badge
             variant={config.variant}
             className={cn(
               config.color,
-              "rounded-sm px-2 md:px-3 text-xs md:text-sm hidden md:block"
+              "rounded-sm px-2 md:px-3 text-xs md:text-sm hidden md:flex gap-2"
             )}
           >
+            <span className="hidden md:inline">{config.icon}</span>
             {config.label}
           </Badge>
         );
       },
-      width: "100px",
+      width: "140px",
       align: "center",
       enableSorting: true,
     },
   ];
 
   // Mobile table fields (simplified view)
-  const mobilePatientFields: TableField<Patient>[] = [
+  const mobileDoctorFields: TableField<Doctor>[] = [
     {
-      key: "patientInfo",
-      header: "Patient",
+      key: "doctorInfo",
+      header: "Doctor",
       cell: (_, row) => {
-        const formattedBloodType = formatBloodType(row.bloodType);
+        const licenseStatus =
+          row.licenseStatus || checkLicenseExpiry(row.licenseExpiryDate);
         return (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">
-                PAT-{row.id.slice(0, 8).toUpperCase()}
+                DR-{row.id.slice(0, 8).toUpperCase()}
               </span>
               <Badge variant="outline" className="text-xs">
                 {row.isActive ? "Active" : "Inactive"}
@@ -583,11 +584,17 @@ export default function PatientsPage() {
               </div>
               <div className="min-w-0">
                 <div className="font-medium text-sm truncate">
-                  {row.firstName} {row.lastName}
+                  {row.title || ""} {row.firstName} {row.lastName}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {calculateAge(row.dateOfBirth) || "?"} yrs •{" "}
-                  {row.gender || "?"} • {formattedBloodType}
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Stethoscope className="h-3 w-3" />
+                  <span>
+                    {row.specialization || row.specialty || "General"}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                  <Hospital className="h-3 w-3" />
+                  <span>{row.hospital || "No hospital"}</span>
                 </div>
               </div>
             </div>
@@ -599,22 +606,29 @@ export default function PatientsPage() {
               <Badge
                 variant="outline"
                 className={cn(
-                  getMedicalStatus(row) === "critical"
+                  licenseStatus.status === "expired"
                     ? "text-red-600"
-                    : getMedicalStatus(row) === "recovering"
-                    ? "text-blue-600"
+                    : licenseStatus.status === "expiring"
+                    ? "text-amber-600"
                     : "text-green-600",
                   "text-xs"
                 )}
               >
-                {getMedicalStatus(row)}
+                License: {licenseStatus.status}
               </Badge>
-              <span className="text-xs text-muted-foreground">
-                Next:{" "}
-                {getNextAppointment(row)
-                  ? format(new Date(getNextAppointment(row)!), "MMM dd")
-                  : "No appt"}
-              </span>
+              <Badge
+                variant="outline"
+                className={cn(
+                  row.availability === "available"
+                    ? "text-green-600"
+                    : row.availability === "busy"
+                    ? "text-amber-600"
+                    : "text-red-600",
+                  "text-xs"
+                )}
+              >
+                {row.availability}
+              </Badge>
             </div>
           </div>
         );
@@ -624,109 +638,120 @@ export default function PatientsPage() {
   ];
 
   // Table actions
-  const patientActions: TableAction<Patient>[] = [
+  const doctorActions: TableAction<Doctor>[] = [
     {
       type: "view",
-      label: "View Patient",
+      label: "View Doctor",
       icon: <Eye className="size-4" />,
-      onClick: async (patient) => {
+      onClick: async (doctor) => {
         try {
-          await getPatient(patient.id);
-          // Navigate to patient details page or open modal
-          toast.success(`Viewing ${patient.firstName} ${patient.lastName}`);
+          await getDoctor(doctor.id);
+          toast.success(`Viewing ${doctor.firstName} ${doctor.lastName}`);
         } catch (error) {
-          toast.error("Failed to load patient details");
+          toast.error("Failed to load doctor details");
         }
       },
     },
     {
       type: "edit",
-      label: "Edit Patient",
+      label: "Edit Doctor",
       icon: <Edit className="size-4" />,
-      onClick: (patient) => {
-        // Implement edit functionality
-        toast.info(`Edit patient: ${patient.firstName} ${patient.lastName}`);
+      onClick: (doctor) => {
+        toast.info(`Edit doctor: ${doctor.firstName} ${doctor.lastName}`);
+      },
+    },
+    {
+      type: "custom",
+      label: "Toggle Availability",
+      icon: <Activity className="size-4" />,
+      onClick: async (doctor) => {
+        try {
+          await toggleAvailability(doctor.id);
+          const newStatus = !doctor.isActive;
+          toast.success(
+            `Doctor ${newStatus ? "activated" : "deactivated"} successfully`
+          );
+        } catch (error: any) {
+          toast.error(error.message || "Failed to toggle availability");
+        }
       },
     },
     {
       type: "delete",
-      label: "Delete Patient",
+      label: "Delete Doctor",
       icon: <Trash2 className="size-4" />,
-      onClick: async (patient) => {
+      onClick: async (doctor) => {
         if (
           confirm(
-            `Are you sure you want to delete ${patient.firstName} ${patient.lastName}?`
+            `Are you sure you want to delete ${doctor.firstName} ${doctor.lastName}?`
           )
         ) {
           try {
-            await removePatient(patient.id);
-            toast.success("Patient deleted successfully");
+            await removeDoctor(doctor.id);
+            toast.success("Doctor deleted successfully");
           } catch (error: any) {
-            toast.error(error.message || "Failed to delete patient");
+            toast.error(error.message || "Failed to delete doctor");
           }
         }
       },
-      disabled: (patient) => {
-        const status = getMedicalStatus(patient);
-        return status === "critical" || (patient.appointments?.length || 0) > 0;
+      disabled: (doctor) => {
+        return (doctor.appointments?.length || 0) > 0;
       },
     },
   ];
 
   const handleRowClick = useCallback(
-    async (patient: Patient) => {
+    async (doctor: Doctor) => {
       try {
-        await getPatient(patient.id);
-        // Navigate to patient details page
-        // router.push(`/patients/${patient.id}`)
-        toast.info(`Selected ${patient.firstName} ${patient.lastName}`);
+        await getDoctor(doctor.id);
+        toast.info(`Selected ${doctor.firstName} ${doctor.lastName}`);
       } catch (error) {
-        toast.error("Failed to load patient details");
+        toast.error("Failed to load doctor details");
       }
     },
-    [getPatient]
+    [getDoctor]
   );
 
-  const handleSelectionChange = useCallback((selected: Patient[]) => {
-    setSelectedPatients(selected);
+  const handleSelectionChange = useCallback((selected: Doctor[]) => {
+    setSelectedDoctors(selected);
   }, []);
 
   const handleExport = useCallback(() => {
-    if (selectedPatients.length === 0) {
-      toast.error("Please select patients to export");
+    if (selectedDoctors.length === 0) {
+      toast.error("Please select doctors to export");
       return;
     }
 
     try {
-      // Create CSV content
       const headers = [
-        "Patient ID",
+        "Doctor ID",
         "Name",
+        "Specialization",
         "Email",
         "Phone",
-        "Gender",
         "Status",
+        "Hospital",
       ];
       const csvContent = [
         headers.join(","),
-        ...selectedPatients.map((patient) =>
+        ...selectedDoctors.map((doctor) =>
           [
-            patient.patientId,
-            `${patient.firstName} ${patient.lastName}`,
-            patient.email,
-            patient.phone,
-            patient.gender,
-            patient.isActive ? "Active" : "Inactive",
+            doctor.doctorId,
+            `${doctor.firstName} ${doctor.lastName}`,
+            doctor.specialization || doctor.specialty || "General",
+            doctor.email,
+            doctor.phone || "",
+            doctor.isActive ? "Active" : "Inactive",
+            doctor.hospital || "",
           ].join(",")
         ),
       ].join("\n");
 
-      // Create and download file
       const blob = new Blob([csvContent], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `patients_export_${
+      a.download = `doctors_export_${
         new Date().toISOString().split("T")[0]
       }.csv`;
       document.body.appendChild(a);
@@ -734,34 +759,36 @@ export default function PatientsPage() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      toast.success(`Exported ${selectedPatients.length} patients`);
+      toast.success(`Exported ${selectedDoctors.length} doctors`);
     } catch (error) {
-      toast.error("Failed to export patients");
+      toast.error("Failed to export doctors");
     }
-  }, [selectedPatients]);
+  }, [selectedDoctors]);
 
   const clearFilters = useCallback(() => {
     setSearchQuery("");
     setStatusFilter("all");
-    setMedicalStatusFilter("all");
-    setGenderFilter("all");
+    setSpecializationFilter("all");
+    setHospitalFilter("all");
+    setAvailabilityFilter("all");
     resetFilters();
   }, [resetFilters]);
 
   const handleRefresh = useCallback(async () => {
     try {
-      await getPatients({ page: pagination.page, limit: pagination.limit });
-      toast.success("Patients list refreshed");
+      await getDoctors({ page: pagination.page, limit: pagination.limit });
+      toast.success("Doctors list refreshed");
     } catch (error) {
-      toast.error("Failed to refresh patients");
+      toast.error("Failed to refresh doctors");
     }
-  }, [getPatients, pagination.page, pagination.limit]);
+  }, [getDoctors, pagination.page, pagination.limit]);
 
   const hasActiveFilters =
     searchQuery ||
     statusFilter !== "all" ||
-    medicalStatusFilter !== "all" ||
-    genderFilter !== "all";
+    specializationFilter !== "all" ||
+    hospitalFilter !== "all" ||
+    availabilityFilter !== "all";
 
   // Show error toast if there's an error
   useEffect(() => {
@@ -770,13 +797,13 @@ export default function PatientsPage() {
     }
   }, [error]);
 
-  const handlePatientAdded = useCallback(async () => {
+  const handleDoctorAdded = useCallback(async () => {
     try {
-      await getPatients({ page: pagination.page, limit: pagination.limit });
+      await getDoctors({ page: pagination.page, limit: pagination.limit });
     } catch (error) {
-      console.error("Failed to refresh patients after adding:", error);
+      console.error("Failed to refresh doctors after adding:", error);
     }
-  }, [getPatients, pagination.page, pagination.limit]);
+  }, [getDoctors, pagination.page, pagination.limit]);
 
   return (
     <>
@@ -799,7 +826,7 @@ export default function PatientsPage() {
               disabled={loading}
             >
               <Plus className="mr-1 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
-              <span className="sm:inline">Add Patient</span>
+              <span className="sm:inline">Add Doctor</span>
             </Button>
           </div>
         }
@@ -809,7 +836,7 @@ export default function PatientsPage() {
         {/* Stats Overview - Responsive grid */}
         <div className="mb-4 md:mb-6">
           <SectionCards
-            cards={patientStatsCards}
+            cards={doctorStatsCards}
             layout={isMobile ? "2x2" : "1x4"}
             className="gap-2 md:gap-4"
           />
@@ -873,34 +900,40 @@ export default function PatientsPage() {
                   </Select>
 
                   <Select
-                    value={medicalStatusFilter}
-                    onValueChange={setMedicalStatusFilter}
+                    value={specializationFilter}
+                    onValueChange={setSpecializationFilter}
                     disabled={loading}
                   >
                     <SelectTrigger className="w-full text-sm">
-                      <SelectValue placeholder="Health Status" />
+                      <SelectValue placeholder="Specialization" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Health Status</SelectItem>
-                      <SelectItem value="stable">Stable</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
-                      <SelectItem value="recovering">Recovering</SelectItem>
+                      <SelectItem value="all">All Specializations</SelectItem>
+                      {uniqueSpecializations
+                        .filter(
+                          (spec): spec is string => !!spec && spec.trim() !== ""
+                        )
+                        .map((spec) => (
+                          <SelectItem key={spec} value={spec}>
+                            {spec}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
 
                   <Select
-                    value={genderFilter}
-                    onValueChange={setGenderFilter}
+                    value={availabilityFilter}
+                    onValueChange={setAvailabilityFilter}
                     disabled={loading}
                   >
                     <SelectTrigger className="w-full text-sm">
-                      <SelectValue placeholder="Gender" />
+                      <SelectValue placeholder="Availability" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Gender</SelectItem>
-                      <SelectItem value={Gender.MALE}>Male</SelectItem>
-                      <SelectItem value={Gender.FEMALE}>Female</SelectItem>
-                      <SelectItem value={Gender.OTHER}>Other</SelectItem>
+                      <SelectItem value="all">All Availability</SelectItem>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="busy">Busy</SelectItem>
+                      <SelectItem value="on-leave">On Leave</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -949,36 +982,42 @@ export default function PatientsPage() {
                   </Select>
 
                   <Select
-                    value={medicalStatusFilter}
-                    onValueChange={setMedicalStatusFilter}
+                    value={specializationFilter}
+                    onValueChange={setSpecializationFilter}
                     disabled={loading}
                   >
                     <SelectTrigger className="w-[200px] text-sm">
-                      <Activity className="mr-2 h-4 w-4" />
-                      <SelectValue placeholder="Health Status" />
+                      <Stethoscope className="mr-2 h-4 w-4" />
+                      <SelectValue placeholder="Specialization" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Health Status</SelectItem>
-                      <SelectItem value="stable">Stable</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
-                      <SelectItem value="recovering">Recovering</SelectItem>
+                      <SelectItem value="all">All Specializations</SelectItem>
+                      {uniqueSpecializations
+                        .filter(
+                          (spec): spec is string => !!spec && spec.trim() !== ""
+                        )
+                        .map((spec) => (
+                          <SelectItem key={spec} value={spec}>
+                            {spec}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
 
                   <Select
-                    value={genderFilter}
-                    onValueChange={setGenderFilter}
+                    value={availabilityFilter}
+                    onValueChange={setAvailabilityFilter}
                     disabled={loading}
                   >
                     <SelectTrigger className="w-[180px] text-sm">
-                      <User className="mr-2 h-4 w-4" />
-                      <SelectValue placeholder="Gender" />
+                      <Activity className="mr-2 h-4 w-4" />
+                      <SelectValue placeholder="Availability" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Gender</SelectItem>
-                      <SelectItem value={Gender.MALE}>Male</SelectItem>
-                      <SelectItem value={Gender.FEMALE}>Female</SelectItem>
-                      <SelectItem value={Gender.OTHER}>Other</SelectItem>
+                      <SelectItem value="all">All Availability</SelectItem>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="busy">Busy</SelectItem>
+                      <SelectItem value="on-leave">On Leave</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -1015,24 +1054,29 @@ export default function PatientsPage() {
                       {statusFilter}
                     </Badge>
                   )}
-                  {medicalStatusFilter !== "all" && (
+                  {specializationFilter !== "all" && (
                     <Badge variant="secondary" className="text-xs h-6">
-                      {medicalStatusFilter}
+                      {specializationFilter}
                     </Badge>
                   )}
-                  {genderFilter !== "all" && (
+                  {hospitalFilter !== "all" && (
                     <Badge variant="secondary" className="text-xs h-6">
-                      {genderFilter}
+                      {hospitalFilter}
+                    </Badge>
+                  )}
+                  {availabilityFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs h-6">
+                      {availabilityFilter}
                     </Badge>
                   )}
                   <Badge variant="outline" className="text-xs h-6">
-                    {filteredPatients.length} of {tablePatients.length}
+                    {filteredDoctors.length} of {tableDoctors.length}
                   </Badge>
                 </div>
               )}
 
               {/* Selected actions */}
-              {selectedPatients.length > 0 && (
+              {selectedDoctors.length > 0 && (
                 <div className="flex items-center gap-1 md:gap-2">
                   <Button
                     variant="outline"
@@ -1044,7 +1088,7 @@ export default function PatientsPage() {
                     <Download className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
                     <span className="hidden sm:inline">Export</span>
                     <span className="sm:hidden">Exp</span>
-                    <span className="ml-1">({selectedPatients.length})</span>
+                    <span className="ml-1">({selectedDoctors.length})</span>
                   </Button>
                 </div>
               )}
@@ -1052,16 +1096,16 @@ export default function PatientsPage() {
           </CardContent>
         </Card>
 
-        {/* Patients Table */}
+        {/* Doctors Table */}
         <Card className="border-none shadow-none">
           <CardContent className={cn("p-0", isMobile ? "px-2" : "px-6")}>
             <div className="overflow-x-auto">
               <DataTable
-                title="Patients"
-                description="Manage and view all patient records"
-                data={filteredPatients}
-                fields={isMobile ? mobilePatientFields : patientFields}
-                actions={patientActions}
+                title="Doctors"
+                description="Manage and view all doctor records"
+                data={filteredDoctors}
+                fields={isMobile ? mobileDoctorFields : doctorFields}
+                actions={doctorActions}
                 loading={loading}
                 enableSelection={isMobile ? false : true}
                 enablePagination={true}
@@ -1069,7 +1113,7 @@ export default function PatientsPage() {
                 onRowClick={handleRowClick}
                 onSelectionChange={handleSelectionChange}
                 emptyMessage={
-                  loading ? "Loading patients..." : "No patients found"
+                  loading ? "Loading doctors..." : "No doctors found"
                 }
               />
             </div>
@@ -1077,10 +1121,10 @@ export default function PatientsPage() {
         </Card>
       </div>
 
-      <AddPatientSheet
+      <AddDoctorSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        onSuccess={handlePatientAdded}
+        onSuccess={handleDoctorAdded}
       />
     </>
   );

@@ -1,27 +1,76 @@
+// src/pages/LoginPage.tsx
 import { LoginForm } from "@/components/login-form"
 import { useNavigate } from "react-router-dom"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { images } from "@/assets/images"
+import { useReduxAuth } from "@/hooks/useReduxAuth"
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const [isLoading] = useState(false)
   const [error, setError] = useState("")
+  
+  // Use the auth hook
+  const { 
+    signin, 
+    loading: authLoading, 
+    error: authError, 
+    clearError,
+    isAuthenticated 
+  } = useReduxAuth()
 
- 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard")
+    }
+  }, [isAuthenticated, navigate])
 
-  // Example 2: Simple navigation without API
+  // Handle login with Redux
   const handleLogin = async (email: string, password: string) => {
+    // Clear any previous errors
+    setError("")
+    clearError()
+    
     // Basic validation
     if (!email || !password) {
       setError("Please fill in all fields")
       return
     }
-    
-    // Navigate directly (for demo purposes)
-    navigate("/dashboard")
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address")
+      return
+    }
+
+    // Password validation
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long")
+      return
+    }
+
+    try {
+      // Call the signin function from auth hook
+      await signin(email, password)
+      
+      // If successful, navigation will happen via useEffect above
+      // or you can navigate immediately:
+      navigate("/dashboard")
+      
+    } catch (error: any) {
+      // Error is already handled in the auth hook with toast
+      // You can set additional error state if needed
+      console.error("Login failed:", error)
+      
+      // Optionally, you can display the error in the form
+      // if you want to show it differently than the toast
+      setError(authError || "Login failed. Please try again.")
+    }
   }
 
+  // Combine errors: local validation errors + auth errors
+  const displayError = error || authError
 
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
@@ -38,10 +87,17 @@ export default function LoginPage() {
           <div className="w-full max-w-xs">
             <LoginForm 
               onLogin={handleLogin} 
-              isLoading={isLoading}
-              error={error}
+              isLoading={authLoading}
+              error={displayError}
             />
           </div>
+        </div>
+        
+        {/* Optional: Demo credentials info */}
+        <div className="mt-4 text-center text-sm text-muted-foreground">
+          <p>Demo credentials:</p>
+          <p className="mt-1">admin@example.com / password123</p>
+          <p className="mt-1">doctor@example.com / password123</p>
         </div>
       </div>
       <div className="bg-muted relative hidden lg:block">

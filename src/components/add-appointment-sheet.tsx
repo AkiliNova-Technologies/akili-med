@@ -1,6 +1,5 @@
-// components/add-appointment-sheet.tsx
 import * as React from "react";
-import { X } from "lucide-react";
+import { X, CalendarIcon, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -28,67 +27,121 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { useReduxAppointments } from "@/hooks/useReduxAppointments";
+import {
+  AppointmentType,
+  AppointmentStatus,
+  PriorityLevel,
+  PaymentStatus,
+  ReminderPreference,
+} from "@/types/appointments";
+import { useReduxDoctors } from "@/hooks/useReduxDoctors";
+import { useReduxPatients } from "@/hooks/useReduxPatients";
+import { toast } from "sonner";
 
 interface AddAppointmentSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit?: (formData: any) => void;
 }
 
 export function AddAppointmentSheet({
   open,
   onOpenChange,
-  onSubmit,
 }: AddAppointmentSheetProps) {
+  const { addAppointment } = useReduxAppointments();
+  // These hooks will be created in the next steps
+  const { patients = [], loading: patientsLoading } = useReduxPatients();
+  const { doctors, loading: doctorsLoading } = useReduxDoctors();
+
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [date, setDate] = React.useState<Date>();
   const [startTime, setStartTime] = React.useState("09:00");
   const [endTime, setEndTime] = React.useState("10:00");
-  const [patient, setPatient] = React.useState("");
-  const [appointmentType, setAppointmentType] = React.useState("");
+  const [patientId, setPatientId] = React.useState("");
+  const [doctorId, setDoctorId] = React.useState("");
+  const [appointmentType, setAppointmentType] = React.useState<AppointmentType>(
+    AppointmentType.CONSULTATION
+  );
   const [reason, setReason] = React.useState("");
-  const [priority, setPriority] = React.useState("normal");
-  const [paymentStatus, setPaymentStatus] = React.useState("pending");
+  const [symptoms, setSymptoms] = React.useState("");
+  const [notes, setNotes] = React.useState("");
+  const [status, setStatus] = React.useState<AppointmentStatus>(
+    AppointmentStatus.SCHEDULED
+  );
+  const [priority, setPriority] = React.useState<PriorityLevel>(
+    PriorityLevel.NORMAL
+  );
+  const [reminderPreference, setReminderPreference] =
+    React.useState<ReminderPreference>(ReminderPreference.ONE_DAY_BEFORE);
+  const [paymentStatus, setPaymentStatus] = React.useState<PaymentStatus>(
+    PaymentStatus.PENDING
+  );
+  const [estimatedCost, setEstimatedCost] = React.useState("");
+  const [paymentNotes, setPaymentNotes] = React.useState("");
+  const [roomId, setRoomId] = React.useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const formData = {
-      patient,
-      appointmentType,
-      date,
-      startTime,
-      endTime,
-      reason,
-      priority,
-      paymentStatus,
-    };
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Call the onSubmit prop if provided
-    if (onSubmit) {
-      onSubmit(formData);
+    // Validate required fields
+    if (!patientId || !doctorId || !date || !reason) {
+      toast.error("Please fill in all required fields");
+      setIsSubmitting(false);
+      return;
     }
 
-    console.log("Form submitted:", formData);
-    setIsSubmitting(false);
-    onOpenChange(false);
+    try {
+      const appointmentData = {
+        patientId,
+        doctorId,
+        roomId: roomId || undefined,
+        appointmentType,
+        date,
+        startTime,
+        endTime,
+        reason,
+        symptoms: symptoms || undefined,
+        notes: notes || undefined,
+        priority,
+        reminderPreference,
+        paymentStatus,
+        estimatedCost: estimatedCost ? parseFloat(estimatedCost) : undefined,
+        paymentNotes: paymentNotes || undefined,
+      };
 
-    // Reset form
-    setPatient("");
-    setAppointmentType("");
-    setReason("");
+      await addAppointment(appointmentData);
+
+      // Reset form
+      resetForm();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Failed to create appointment:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
     setDate(undefined);
     setStartTime("09:00");
     setEndTime("10:00");
-    setPriority("normal");
-    setPaymentStatus("pending");
+    setPatientId("");
+    setDoctorId("");
+    setAppointmentType(AppointmentType.CONSULTATION);
+    setReason("");
+    setSymptoms("");
+    setNotes("");
+    setStatus(AppointmentStatus.SCHEDULED);
+    setPriority(PriorityLevel.NORMAL);
+    setReminderPreference(ReminderPreference.ONE_DAY_BEFORE);
+    setPaymentStatus(PaymentStatus.PENDING);
+    setEstimatedCost("");
+    setPaymentNotes("");
+    setRoomId("");
   };
+
   // Generate time options (every 30 minutes from 8:00 to 18:00)
   const timeOptions = React.useMemo(() => {
     const times = [];
@@ -101,6 +154,28 @@ export function AddAppointmentSheet({
     }
     return times;
   }, []);
+
+  // Calculate duration
+  const calculateDuration = () => {
+    if (!startTime || !endTime) return "N/A";
+
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const [endHour, endMinute] = endTime.split(":").map(Number);
+
+    const startTotal = startHour * 60 + startMinute;
+    const endTotal = endHour * 60 + endMinute;
+
+    const durationMinutes = endTotal - startTotal;
+
+    if (durationMinutes <= 0) return "Invalid";
+
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+
+    if (hours === 0) return `${minutes} minutes`;
+    if (minutes === 0) return `${hours} hour${hours > 1 ? "s" : ""}`;
+    return `${hours}h ${minutes}m`;
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -138,42 +213,60 @@ export function AddAppointmentSheet({
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Patient Information</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="patient">Select Patient *</Label>
-                  <Select disabled={isSubmitting} required>
+                  <Label htmlFor="patient">
+                    Select Patient <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={patientId}
+                    onValueChange={setPatientId}
+                    disabled={isSubmitting || patientsLoading}
+                    required
+                  >
                     <SelectTrigger className="min-w-full">
                       <SelectValue placeholder="Search for patient..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="john-doe">John Doe</SelectItem>
-                      <SelectItem value="jane-smith">Jane Smith</SelectItem>
-                      <SelectItem value="robert-johnson">
-                        Robert Johnson
-                      </SelectItem>
-                      <SelectItem value="sarah-williams">
-                        Sarah Williams
-                      </SelectItem>
-                      <SelectItem value="michael-brown">
-                        Michael Brown
-                      </SelectItem>
+                      {patientsLoading ? (
+                        <div className="py-2 px-2 text-sm text-muted-foreground">
+                          Loading patients...
+                        </div>
+                      ) : patients.length === 0 ? (
+                        <div className="py-2 px-2 text-sm text-muted-foreground">
+                          No patients found
+                        </div>
+                      ) : (
+                        patients.map((patient) => (
+                          <SelectItem key={patient.id} value={patient.id}>
+                            {patient.firstName} {patient.lastName} -{" "}
+                            {patient.phone}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="appointmentType">Appointment Type *</Label>
-                  <Select disabled={isSubmitting} required>
+                  <Label htmlFor="appointmentType">
+                    Appointment Type <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={appointmentType}
+                    onValueChange={(value) =>
+                      setAppointmentType(value as AppointmentType)
+                    }
+                    disabled={isSubmitting}
+                    required
+                  >
                     <SelectTrigger className="min-w-full">
-                      <SelectValue placeholder="Select appointment type" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="consultation">Consultation</SelectItem>
-                      <SelectItem value="follow-up">Follow-up</SelectItem>
-                      <SelectItem value="checkup">Routine Checkup</SelectItem>
-                      <SelectItem value="emergency">Emergency</SelectItem>
-                      <SelectItem value="vaccination">Vaccination</SelectItem>
-                      <SelectItem value="lab-test">Lab Test</SelectItem>
-                      <SelectItem value="surgery">Surgery</SelectItem>
-                      <SelectItem value="therapy">Therapy Session</SelectItem>
+                      {Object.values(AppointmentType).map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type.replace("_", " ")}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -184,7 +277,9 @@ export function AddAppointmentSheet({
                 <h3 className="text-lg font-semibold">Date & Time</h3>
 
                 <div className="space-y-2">
-                  <Label>Appointment Date *</Label>
+                  <Label>
+                    Appointment Date <span className="text-destructive">*</span>
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -206,6 +301,7 @@ export function AddAppointmentSheet({
                         onSelect={setDate}
                         initialFocus
                         disabled={isSubmitting}
+                        fromDate={new Date()}
                       />
                     </PopoverContent>
                   </Popover>
@@ -213,7 +309,9 @@ export function AddAppointmentSheet({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startTime">Start Time *</Label>
+                    <Label htmlFor="startTime">
+                      Start Time <span className="text-destructive">*</span>
+                    </Label>
                     <div className="relative">
                       <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Select
@@ -237,7 +335,9 @@ export function AddAppointmentSheet({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="endTime">End Time *</Label>
+                    <Label htmlFor="endTime">
+                      End Time <span className="text-destructive">*</span>
+                    </Label>
                     <div className="relative">
                       <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Select
@@ -265,8 +365,9 @@ export function AddAppointmentSheet({
                   <Label htmlFor="duration">Duration</Label>
                   <Input
                     id="duration"
-                    value="1 hour"
+                    value={calculateDuration()}
                     readOnly
+                    aria-disabled
                     disabled={isSubmitting}
                   />
                 </div>
@@ -276,52 +377,35 @@ export function AddAppointmentSheet({
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Medical Provider</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="doctor">Assigned Doctor/Provider *</Label>
-                  <Select disabled={isSubmitting} required>
+                  <Label htmlFor="doctor">
+                    Assigned Doctor <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={doctorId}
+                    onValueChange={setDoctorId}
+                    disabled={isSubmitting || doctorsLoading}
+                    required
+                  >
                     <SelectTrigger className="min-w-full">
                       <SelectValue placeholder="Select doctor" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="dr-smith">
-                        Dr. Sarah Smith (General Physician)
-                      </SelectItem>
-                      <SelectItem value="dr-johnson">
-                        Dr. Michael Johnson (Cardiologist)
-                      </SelectItem>
-                      <SelectItem value="dr-williams">
-                        Dr. Emily Williams (Pediatrician)
-                      </SelectItem>
-                      <SelectItem value="dr-brown">
-                        Dr. David Brown (Dermatologist)
-                      </SelectItem>
-                      <SelectItem value="dr-taylor">
-                        Dr. Jennifer Taylor (Neurologist)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="room">Room/Location</Label>
-                  <Select disabled={isSubmitting}>
-                    <SelectTrigger className="min-w-full">
-                      <SelectValue placeholder="Select room" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="room-101">
-                        Room 101 (Examination)
-                      </SelectItem>
-                      <SelectItem value="room-102">
-                        Room 102 (Examination)
-                      </SelectItem>
-                      <SelectItem value="room-201">
-                        Room 201 (Consultation)
-                      </SelectItem>
-                      <SelectItem value="room-202">
-                        Room 202 (Consultation)
-                      </SelectItem>
-                      <SelectItem value="lab">Lab Room</SelectItem>
-                      <SelectItem value="surgery">Surgery Room</SelectItem>
+                      {doctorsLoading ? (
+                        <div className="py-2 px-2 text-sm text-muted-foreground">
+                          Loading doctors...
+                        </div>
+                      ) : doctors.length === 0 ? (
+                        <div className="py-2 px-2 text-sm text-muted-foreground">
+                          No doctors found
+                        </div>
+                      ) : (
+                        doctors.map((doctor) => (
+                          <SelectItem key={doctor.id} value={doctor.id}>
+                            Dr. {doctor.firstName} {doctor.lastName} -{" "}
+                            {doctor.specialization || "General Physician"}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -332,9 +416,13 @@ export function AddAppointmentSheet({
                 <h3 className="text-lg font-semibold">Appointment Details</h3>
 
                 <div className="space-y-2">
-                  <Label htmlFor="reason">Reason for Visit *</Label>
+                  <Label htmlFor="reason">
+                    Reason for Visit <span className="text-destructive">*</span>
+                  </Label>
                   <Textarea
                     id="reason"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
                     placeholder="Describe the reason for the appointment"
                     rows={3}
                     required
@@ -346,6 +434,8 @@ export function AddAppointmentSheet({
                   <Label htmlFor="symptoms">Symptoms</Label>
                   <Textarea
                     id="symptoms"
+                    value={symptoms}
+                    onChange={(e) => setSymptoms(e.target.value)}
                     placeholder="List any symptoms the patient is experiencing"
                     rows={2}
                     disabled={isSubmitting}
@@ -356,6 +446,8 @@ export function AddAppointmentSheet({
                   <Label htmlFor="notes">Additional Notes</Label>
                   <Textarea
                     id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
                     placeholder="Any additional notes or special requirements"
                     rows={2}
                     disabled={isSubmitting}
@@ -370,33 +462,44 @@ export function AddAppointmentSheet({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="status">Appointment Status</Label>
-                    <Select disabled={isSubmitting} defaultValue="scheduled">
+                    <Select
+                      value={status}
+                      onValueChange={(value) =>
+                        setStatus(value as AppointmentStatus)
+                      }
+                      disabled={isSubmitting}
+                    >
                       <SelectTrigger className="min-w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="scheduled">Scheduled</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="waiting">Waiting</SelectItem>
-                        <SelectItem value="in-progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                        <SelectItem value="no-show">No Show</SelectItem>
+                        {Object.values(AppointmentStatus).map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status.replace("_", " ")}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="priority">Priority Level</Label>
-                    <Select disabled={isSubmitting} defaultValue="normal">
+                    <Select
+                      value={priority}
+                      onValueChange={(value) =>
+                        setPriority(value as PriorityLevel)
+                      }
+                      disabled={isSubmitting}
+                    >
                       <SelectTrigger className="min-w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="emergency">Emergency</SelectItem>
+                        {Object.values(PriorityLevel).map((level) => (
+                          <SelectItem key={level} value={level}>
+                            {level}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -404,17 +507,24 @@ export function AddAppointmentSheet({
 
                 <div className="space-y-2">
                   <Label htmlFor="reminder">Send Reminder</Label>
-                  <Select disabled={isSubmitting} defaultValue="1-day">
+                  <Select
+                    value={reminderPreference}
+                    onValueChange={(value) =>
+                      setReminderPreference(value as ReminderPreference)
+                    }
+                    disabled={isSubmitting}
+                  >
                     <SelectTrigger className="min-w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Don't Send</SelectItem>
-                      <SelectItem value="1-hour">1 hour before</SelectItem>
-                      <SelectItem value="6-hours">6 hours before</SelectItem>
-                      <SelectItem value="1-day">1 day before</SelectItem>
-                      <SelectItem value="2-days">2 days before</SelectItem>
-                      <SelectItem value="1-week">1 week before</SelectItem>
+                      {Object.values(ReminderPreference).map((pref) => (
+                        <SelectItem key={pref} value={pref}>
+                          {pref === "NONE"
+                            ? "Don't Send"
+                            : pref.replace("_", " ").toLowerCase()}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -427,16 +537,22 @@ export function AddAppointmentSheet({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="paymentStatus">Payment Status</Label>
-                    <Select disabled={isSubmitting} defaultValue="pending">
+                    <Select
+                      value={paymentStatus}
+                      onValueChange={(value) =>
+                        setPaymentStatus(value as PaymentStatus)
+                      }
+                      disabled={isSubmitting}
+                    >
                       <SelectTrigger className="min-w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="partial">Partial Payment</SelectItem>
-                        <SelectItem value="paid">Paid</SelectItem>
-                        <SelectItem value="insurance">Insurance</SelectItem>
-                        <SelectItem value="waived">Waived</SelectItem>
+                        {Object.values(PaymentStatus).map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -446,6 +562,8 @@ export function AddAppointmentSheet({
                     <Input
                       id="estimatedCost"
                       type="number"
+                      value={estimatedCost}
+                      onChange={(e) => setEstimatedCost(e.target.value)}
                       placeholder="0.00"
                       min="0"
                       step="0.01"
@@ -458,6 +576,8 @@ export function AddAppointmentSheet({
                   <Label htmlFor="paymentNotes">Payment Notes</Label>
                   <Textarea
                     id="paymentNotes"
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
                     placeholder="Payment-related notes"
                     rows={2}
                     disabled={isSubmitting}
@@ -474,6 +594,7 @@ export function AddAppointmentSheet({
                   variant="outline"
                   className="flex flex-1"
                   disabled={isSubmitting}
+                  onClick={resetForm}
                 >
                   Cancel
                 </Button>

@@ -1,6 +1,8 @@
 // components/add-invoice-sheet.tsx
+"use client"
+
 import * as React from "react"
-import { X, Plus, Minus } from "lucide-react"
+import { X, Plus, Minus, CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -24,57 +26,217 @@ import {
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
+import { useReduxInvoices } from "@/hooks/useReduxInvoice"
+import { useReduxContacts } from "@/hooks/useReduxContacts"
+import { useReduxPatients } from "@/hooks/useReduxPatients"
+import { InvoiceStatus, type Invoice } from "@/types/invoice"
 
 interface InvoiceItem {
-  id: number
+  id: string
   description: string
   quantity: number
   unitPrice: number
   total: number
+  productId?: string
 }
 
 interface AddInvoiceSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  invoice?: any
+  isEditing?: boolean
+  onSuccess?: () => void
 }
 
-export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
+export function AddInvoiceSheet({ 
+  open, 
+  onOpenChange, 
+  invoice, 
+  isEditing = false, 
+  onSuccess 
+}: AddInvoiceSheetProps) {
+  const { addInvoice, editInvoice, loading } = useReduxInvoices()
+  const { contacts } = useReduxContacts()
+  const { patients } = useReduxPatients()
+  
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [invoiceDate, setInvoiceDate] = React.useState<Date>()
   const [dueDate, setDueDate] = React.useState<Date>()
   const [items, setItems] = React.useState<InvoiceItem[]>([
-    { id: 1, description: "", quantity: 1, unitPrice: 0, total: 0 }
+    { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }
   ])
-  const [taxRate, setTaxRate] = React.useState(0)
-  const [discount, setDiscount] = React.useState(0)
+  const [formData, setFormData] = React.useState({
+    clientId: "",
+    patientId: "",
+    clientEmail: "",
+    clientPhone: "",
+    billingAddress: "",
+    reference: "",
+    paymentTerms: "net-30",
+    currency: "USD",
+    notes: "",
+    internalNotes: "",
+    status: InvoiceStatus.DRAFT,
+    paymentMethod: "",
+    taxRate: 0,
+    discount: 0,
+  })
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+  // Initialize form with invoice data when editing
+  React.useEffect(() => {
+    if (invoice && isEditing) {
+      // Set dates
+      setInvoiceDate(new Date(invoice.invoiceDate))
+      setDueDate(new Date(invoice.dueDate))
+      
+      // Set form data
+      setFormData({
+        clientId: invoice.clientId || "",
+        patientId: invoice.patientId || "",
+        clientEmail: invoice.clientEmail || "",
+        clientPhone: invoice.clientPhone || "",
+        billingAddress: invoice.billingAddress || "",
+        reference: invoice.reference || "",
+        paymentTerms: invoice.paymentTerms || "net-30",
+        currency: invoice.currency || "USD",
+        notes: invoice.notes || "",
+        internalNotes: invoice.internalNotes || "",
+        status: invoice.status || InvoiceStatus.DRAFT,
+        paymentMethod: invoice.paymentMethod || "",
+        taxRate: invoice.taxRate || 0,
+        discount: invoice.discount || 0,
+      })
+      
+      // Set items
+      if (invoice.items && Array.isArray(invoice.items)) {
+        setItems(invoice.items.map((item: any, index: number) => ({
+          id: item.id || `item-${index + 1}`,
+          description: item.description || "",
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice || 0,
+          total: item.total || 0,
+          productId: item.productId
+        })))
+      }
+    } else {
+      // Reset form for new invoice
+      const today = new Date()
+      const due = new Date(today)
+      due.setDate(today.getDate() + 30) // Default 30 days from now
+      
+      setInvoiceDate(today)
+      setDueDate(due)
+      setItems([{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }])
+      setFormData({
+        clientId: "",
+        patientId: "",
+        clientEmail: "",
+        clientPhone: "",
+        billingAddress: "",
+        reference: "",
+        paymentTerms: "net-30",
+        currency: "USD",
+        notes: "",
+        internalNotes: "",
+        status: InvoiceStatus.DRAFT,
+        paymentMethod: "",
+        taxRate: 0,
+        discount: 0,
+      })
+    }
+  }, [invoice, isEditing, open])
+
+  // Auto-fill client details when client is selected
+  React.useEffect(() => {
+    if (formData.clientId) {
+      const selectedClient = contacts.find(c => c.id === formData.clientId)
+      if (selectedClient) {
+        setFormData(prev => ({
+          ...prev,
+          clientEmail: selectedClient.email || "",
+          clientPhone: selectedClient.phone || "",
+          billingAddress: selectedClient.streetAddress || "",
+        }))
+      }
+    }
+  }, [formData.clientId, contacts])
+
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault()
+  setIsSubmitting(true)
+  
+  try {
+    // Validate required fields
+    if (!formData.clientId || !invoiceDate || !dueDate) {
+      alert("Please fill in all required fields (Client, Invoice Date, Due Date)")
+      setIsSubmitting(false)
+      return
+    }
+
+    // Validate items
+    const hasInvalidItems = items.some(item => !item.description || item.quantity <= 0 || item.unitPrice < 0)
+    if (hasInvalidItems) {
+      alert("Please fill in all item details correctly")
+      setIsSubmitting(false)
+      return
+    }
+
+    // Prepare invoice data - Use undefined instead of null
+    const invoiceData: Partial<Invoice> = {
+      clientId: formData.clientId,
+      patientId: formData.patientId || undefined,
+      invoiceDate: invoiceDate.toISOString(),
+      dueDate: dueDate.toISOString(),
+      clientEmail: formData.clientEmail,
+      clientPhone: formData.clientPhone || undefined,
+      billingAddress: formData.billingAddress || undefined,
+      reference: formData.reference || undefined,
+      paymentTerms: formData.paymentTerms,
+      currency: formData.currency,
+      items: items.map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.total,
+        productId: item.productId || undefined
+      })),
+      notes: formData.notes || undefined,
+      internalNotes: formData.internalNotes || undefined,
+      status: formData.status,
+      paymentMethod: formData.paymentMethod || undefined,
+      taxRate: formData.taxRate,
+      discount: formData.discount,
+    }
+
+    if (isEditing && invoice) {
+      await editInvoice(invoice.id, invoiceData)
+    } else {
+      await addInvoice(invoiceData)
+    }
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Handle form submission here
-    console.log("Form submitted")
-    setIsSubmitting(false)
+    onSuccess?.()
     onOpenChange(false)
+  } catch (error: any) {
+    console.error("Failed to save invoice:", error)
+    alert(error.message || "Failed to save invoice. Please try again.")
+  } finally {
+    setIsSubmitting(false)
   }
+}
 
   const addItem = () => {
-    const newId = items.length > 0 ? Math.max(...items.map(item => item.id)) + 1 : 1
+    const newId = `item-${Date.now()}`
     setItems([...items, { id: newId, description: "", quantity: 1, unitPrice: 0, total: 0 }])
   }
 
-  const removeItem = (id: number) => {
+  const removeItem = (id: string) => {
     if (items.length > 1) {
       setItems(items.filter(item => item.id !== id))
     }
   }
 
-  const updateItem = (id: number, field: keyof InvoiceItem, value: string | number) => {
+  const updateItem = (id: string, field: keyof InvoiceItem, value: string | number) => {
     setItems(items.map(item => {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value }
@@ -89,8 +251,8 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
 
   // Calculate totals
   const subtotal = items.reduce((sum, item) => sum + item.total, 0)
-  const taxAmount = (subtotal * taxRate) / 100
-  const discountAmount = (subtotal * discount) / 100
+  const taxAmount = (subtotal * formData.taxRate) / 100
+  const discountAmount = (subtotal * formData.discount) / 100
   const total = subtotal + taxAmount - discountAmount
 
   return (
@@ -103,9 +265,13 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
           <SheetHeader className="px-6 py-4 border-b sticky top-0 bg-background z-10">
             <div className="flex items-center justify-between">
               <div>
-                <SheetTitle className="text-2xl font-bold">Create New Invoice</SheetTitle>
+                <SheetTitle className="text-2xl font-bold">
+                  {isEditing ? "Edit Invoice" : "Create New Invoice"}
+                </SheetTitle>
                 <SheetDescription>
-                  Fill in the invoice details below
+                  {isEditing 
+                    ? "Update invoice details and items"
+                    : "Fill in the invoice details below"}
                 </SheetDescription>
               </div>
               <SheetClose asChild>
@@ -129,22 +295,32 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="invoiceNumber">Invoice Number *</Label>
+                    <Label htmlFor="reference">Reference Number (Optional)</Label>
                     <Input 
-                      id="invoiceNumber" 
-                      placeholder="INV-2023-001" 
-                      required 
-                      disabled={isSubmitting}
+                      id="reference" 
+                      placeholder="REF-12345" 
+                      value={formData.reference}
+                      onChange={(e) => setFormData(prev => ({ ...prev, reference: e.target.value }))}
+                      disabled={isSubmitting || loading}
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reference">Reference Number</Label>
-                    <Input 
-                      id="reference" 
-                      placeholder="REF-12345" 
-                      disabled={isSubmitting}
-                    />
+                    <Label>Invoice Status</Label>
+                    <Select 
+                      value={formData.status} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as InvoiceStatus }))}
+                      disabled={isSubmitting || loading}
+                    >
+                      <SelectTrigger className="min-w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DRAFT">Draft</SelectItem>
+                        <SelectItem value="SENT">Sent</SelectItem>
+                        <SelectItem value="PAID">Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 
@@ -159,7 +335,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                             "w-full justify-start text-left font-normal shadow-none bg-input/40",
                             !invoiceDate && "text-muted-foreground"
                           )}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || loading}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {invoiceDate ? format(invoiceDate, "PPP") : "Pick a date"}
@@ -171,7 +347,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                           selected={invoiceDate}
                           onSelect={setInvoiceDate}
                           initialFocus
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || loading}
                         />
                       </PopoverContent>
                     </Popover>
@@ -187,7 +363,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                             "w-full justify-start text-left font-normal shadow-none bg-input/40",
                             !dueDate && "text-muted-foreground"
                           )}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || loading}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {dueDate ? format(dueDate, "PPP") : "Pick a date"}
@@ -199,7 +375,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                           selected={dueDate}
                           onSelect={setDueDate}
                           initialFocus
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || loading}
                         />
                       </PopoverContent>
                     </Popover>
@@ -213,18 +389,21 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                 
                 <div className="space-y-2">
                   <Label htmlFor="client">Select Client *</Label>
-                  <Select disabled={isSubmitting} required>
+                  <Select 
+                    value={formData.clientId} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, clientId: value }))}
+                    disabled={isSubmitting || loading}
+                    required
+                  >
                     <SelectTrigger className="min-w-full">
                       <SelectValue placeholder="Search for client..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="john-doe">John Doe</SelectItem>
-                      <SelectItem value="jane-smith">Jane Smith</SelectItem>
-                      <SelectItem value="robert-johnson">Robert Johnson</SelectItem>
-                      <SelectItem value="sarah-williams">Sarah Williams</SelectItem>
-                      <SelectItem value="michael-brown">Michael Brown</SelectItem>
-                      <SelectItem value="acme-corp">Acme Corporation</SelectItem>
-                      <SelectItem value="xyz-health">XYZ Health Services</SelectItem>
+                      {contacts.map(contact => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          {contact.companyName || `${contact.firstName} ${contact.lastName}`}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -236,8 +415,10 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                       id="clientEmail" 
                       type="email" 
                       placeholder="client@example.com" 
+                      value={formData.clientEmail}
+                      onChange={(e) => setFormData(prev => ({ ...prev, clientEmail: e.target.value }))}
                       required 
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || loading}
                     />
                   </div>
                   
@@ -247,7 +428,9 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                       id="clientPhone" 
                       type="tel" 
                       placeholder="+1 (555) 123-4567" 
-                      disabled={isSubmitting}
+                      value={formData.clientPhone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, clientPhone: e.target.value }))}
+                      disabled={isSubmitting || loading}
                     />
                   </div>
                 </div>
@@ -258,8 +441,30 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                     id="billingAddress" 
                     placeholder="Enter billing address" 
                     rows={2}
-                    disabled={isSubmitting}
+                    value={formData.billingAddress}
+                    onChange={(e) => setFormData(prev => ({ ...prev, billingAddress: e.target.value }))}
+                    disabled={isSubmitting || loading}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="patient">Patient (Optional)</Label>
+                  <Select 
+                    value={formData.patientId} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, patientId: value }))}
+                    disabled={isSubmitting || loading}
+                  >
+                    <SelectTrigger className="min-w-full">
+                      <SelectValue placeholder="Select patient (optional)..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {patients.map(patient => (
+                        <SelectItem key={patient.id} value={patient.id}>
+                          {`${patient.firstName} ${patient.lastName}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -272,7 +477,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                     variant="outline" 
                     size="sm"
                     onClick={addItem}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || loading}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Item
@@ -290,7 +495,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                             variant="ghost"
                             size="sm"
                             onClick={() => removeItem(item.id)}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || loading}
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
@@ -305,7 +510,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                           onChange={(e) => updateItem(item.id, 'description', e.target.value)}
                           placeholder="Service description"
                           required
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || loading}
                         />
                       </div>
                       
@@ -319,7 +524,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                             value={item.quantity}
                             onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
                             required
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || loading}
                           />
                         </div>
                         
@@ -333,7 +538,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                             value={item.unitPrice}
                             onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                             required
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || loading}
                           />
                         </div>
                         
@@ -343,7 +548,7 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                             id={`total-${item.id}`}
                             value={item.total.toFixed(2)}
                             readOnly
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || loading}
                             className="bg-muted"
                           />
                         </div>
@@ -360,7 +565,11 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="paymentTerms">Payment Terms</Label>
-                    <Select disabled={isSubmitting} defaultValue="net-30">
+                    <Select 
+                      value={formData.paymentTerms} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, paymentTerms: value }))}
+                      disabled={isSubmitting || loading}
+                    >
                       <SelectTrigger className="min-w-full">
                         <SelectValue />
                       </SelectTrigger>
@@ -377,16 +586,21 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                   
                   <div className="space-y-2">
                     <Label htmlFor="currency">Currency *</Label>
-                    <Select disabled={isSubmitting} defaultValue="usd" required>
+                    <Select 
+                      value={formData.currency} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
+                      disabled={isSubmitting || loading}
+                      required
+                    >
                       <SelectTrigger className="min-w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="usd">USD ($)</SelectItem>
-                        <SelectItem value="eur">EUR (€)</SelectItem>
-                        <SelectItem value="gbp">GBP (£)</SelectItem>
-                        <SelectItem value="cad">CAD ($)</SelectItem>
-                        <SelectItem value="aud">AUD ($)</SelectItem>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                        <SelectItem value="CAD">CAD ($)</SelectItem>
+                        <SelectItem value="AUD">AUD ($)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -413,9 +627,9 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                           min="0"
                           max="100"
                           step="0.1"
-                          value={taxRate}
-                          onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
-                          disabled={isSubmitting}
+                          value={formData.taxRate}
+                          onChange={(e) => setFormData(prev => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
+                          disabled={isSubmitting || loading}
                           className="flex-1"
                         />
                         <span>%</span>
@@ -431,9 +645,9 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                           min="0"
                           max="100"
                           step="0.1"
-                          value={discount}
-                          onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                          disabled={isSubmitting}
+                          value={formData.discount}
+                          onChange={(e) => setFormData(prev => ({ ...prev, discount: parseFloat(e.target.value) || 0 }))}
+                          disabled={isSubmitting || loading}
                           className="flex-1"
                         />
                         <span>%</span>
@@ -458,56 +672,17 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                 </div>
               </div>
 
-              {/* Notes & Additional Information */}
+              {/* Payment Method */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Notes & Additional Information</h3>
+                <h3 className="text-lg font-semibold">Payment Method</h3>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes for Client</Label>
-                  <Textarea 
-                    id="notes" 
-                    placeholder="Add any notes or terms for the client" 
-                    rows={3}
-                    disabled={isSubmitting}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="internalNotes">Internal Notes</Label>
-                  <Textarea 
-                    id="internalNotes" 
-                    placeholder="Internal notes (not visible to client)" 
-                    rows={2}
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              {/* Invoice Status */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Invoice Status</h3>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="status">Invoice Status</Label>
-                  <Select disabled={isSubmitting} defaultValue="draft">
-                    <SelectTrigger className="min-w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="sent">Sent</SelectItem>
-                      <SelectItem value="viewed">Viewed</SelectItem>
-                      <SelectItem value="partial">Partially Paid</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="overdue">Overdue</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="paymentMethod">Payment Method</Label>
-                  <Select disabled={isSubmitting}>
+                  <Label htmlFor="paymentMethod">Preferred Payment Method</Label>
+                  <Select 
+                    value={formData.paymentMethod} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
+                    disabled={isSubmitting || loading}
+                  >
                     <SelectTrigger className="min-w-full">
                       <SelectValue placeholder="Select payment method" />
                     </SelectTrigger>
@@ -522,13 +697,42 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                   </Select>
                 </div>
               </div>
+
+              {/* Notes & Additional Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Notes & Additional Information</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes for Client</Label>
+                  <Textarea 
+                    id="notes" 
+                    placeholder="Add any notes or terms for the client" 
+                    rows={3}
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    disabled={isSubmitting || loading}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="internalNotes">Internal Notes</Label>
+                  <Textarea 
+                    id="internalNotes" 
+                    placeholder="Internal notes (not visible to client)" 
+                    rows={2}
+                    value={formData.internalNotes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, internalNotes: e.target.value }))}
+                    disabled={isSubmitting || loading}
+                  />
+                </div>
+              </div>
             </div>
           </form>
           
           <SheetFooter className="px-6 py-4 border-t sticky bottom-0 bg-background">
             <div className="flex items-center justify-between w-full gap-8">
               <SheetClose asChild>
-                <Button variant="outline" className="flex flex-1" disabled={isSubmitting}>
+                <Button variant="outline" className="flex flex-1" disabled={isSubmitting || loading}>
                   Cancel
                 </Button>
               </SheetClose>
@@ -536,9 +740,11 @@ export function AddInvoiceSheet({ open, onOpenChange }: AddInvoiceSheetProps) {
                 type="submit" 
                 form="invoice-form" 
                 className="bg-[#e11d48] hover:bg-[#e11d48]/90 flex flex-1"
-                disabled={isSubmitting}
+                disabled={isSubmitting || loading}
               >
-                {isSubmitting ? "Creating Invoice..." : "Create Invoice"}
+                {isSubmitting || loading 
+                  ? (isEditing ? "Updating Invoice..." : "Creating Invoice...") 
+                  : (isEditing ? "Update Invoice" : "Create Invoice")}
               </Button>
             </div>
           </SheetFooter>

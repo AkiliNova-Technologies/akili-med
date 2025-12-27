@@ -1,16 +1,17 @@
 import axios from 'axios';
 
-// const BASE_URL = "https://woa-backend-1.onrender.com";
-const BASE_URL = "";
+// Use environment variable or fallback to production URL
+const BASE_URL = import.meta.env.VITE_API_URL || "https://akili-backend.com";
 
 if (!BASE_URL) {
-  console.warn("❌ BASE_URL is not defined in Constants.expoConfig.extra");
+  console.warn("❌ BASE_URL is not defined");
 }
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // ✅ Important: enables cookies/sessions
 });
 
 // Request interceptor to add auth token
@@ -31,7 +32,6 @@ api.interceptors.request.use(
         console.error('Error reading auth token from localStorage:', error);
       }
     }
-    
     return config;
   },
   (error) => {
@@ -57,16 +57,18 @@ api.interceptors.response.use(
       data: error.response?.data,
       message: error.message,
     });
-    
+
     // Handle 401 errors specifically
     if (error.response?.status === 401) {
       // Token is invalid/expired - clear it
       if (typeof window !== 'undefined') {
         localStorage.removeItem('authData');
+        // Optionally redirect to login
+        // window.location.href = '/login';
       }
       console.warn('🔐 Authentication failed - token cleared');
     }
-    
+
     return Promise.reject(error);
   }
 );

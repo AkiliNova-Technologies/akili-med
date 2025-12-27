@@ -7,19 +7,9 @@ import { useState, type FormEvent } from "react";
 import { PasswordInput } from "./ui/password-input";
 
 interface LoginFormProps extends React.ComponentPropsWithoutRef<"form"> {
-  /**
-   * Optional function to handle login submission
-   * Receives email and password, should return Promise or handle navigation
-   */
   onLogin?: (email: string, password: string) => Promise<void> | void;
-  /**
-   * Optional loading state
-   */
   isLoading?: boolean;
-  /**
-   * Optional error message
-   */
-  error?: string;
+  error?: string | null;
 }
 
 export function LoginForm({
@@ -105,7 +95,11 @@ export function LoginForm({
             showToggle={true}
           />
         </div>
-        <Button type="submit" className="w-full bg-[#e11d48] hover:bg-[#e11d48]/80 text-white hover:text-white" disabled={isProcessing}>
+        <Button
+          type="submit"
+          className="w-full bg-[#e11d48] hover:bg-[#e11d48]/80 text-white hover:text-white"
+          disabled={isProcessing}
+        >
           {isProcessing ? "Logging in..." : "Login"}
         </Button>
       </div>

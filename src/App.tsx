@@ -14,6 +14,7 @@ import CommunicationsPage from "./pages/dashboard/Communications";
 import ReportsPage from "./pages/dashboard/Reports";
 import SettingsPage from "./pages/dashboard/Settings";
 import AccountPage from "./pages/dashboard/Account";
+import DoctorsPage from "./pages/dashboard/Doctors";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
               <Route index element={<DashboardPage />} />
               <Route path="appointments" element={<AppointmentsPage />} />
               <Route path="patients" element={<PatientsPage />} />
+              <Route path="doctors" element={<DoctorsPage />} />
               <Route path="invoices" element={<InvoicesPage />} />
               <Route path="payments" element={<PaymentsPage />} />
               <Route path="products" element={<ProductsPage />} />

@@ -75,6 +75,7 @@ export interface TableAction<TData extends TableData> {
 interface DataTableProps<TData extends TableData> {
   title?: string;
   description?: string;
+  emptyMessage?: string;
   data: TData[];
   fields: TableField<TData>[];
   actions?: TableAction<TData>[];
@@ -153,6 +154,7 @@ const getAlignmentClass = (align?: "left" | "center" | "right"): string => {
 function DataTable<TData extends TableData>({
   title,
   description,
+  emptyMessage,
   data,
   fields,
   actions = [],
@@ -413,7 +415,7 @@ function DataTable<TData extends TableData>({
                     colSpan={columns.length}
                     className="h-24 text-center"
                   >
-                    No results.
+                    { emptyMessage || "No results."}
                   </TableCell>
                 </TableRow>
               )}

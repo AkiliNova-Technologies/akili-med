@@ -1,3 +1,4 @@
+// src/components/app-sidebar.tsx
 import * as React from "react";
 import {
   Calendar,
@@ -10,6 +11,8 @@ import {
   Settings,
   LayoutDashboard,
   MessageSquare,
+  Stethoscope,
+  Hospital,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -27,14 +30,12 @@ import {
 import { Link } from "react-router-dom";
 import { images } from "@/assets/images";
 import { cn } from "@/lib/utils";
+import { useReduxAuth } from "@/hooks/useReduxAuth";
 
-const data = {
-  user: {
-    name: "admin",
-    email: "admin@gmail.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  navMain: [
+// Helper function to filter navigation based on user role
+const getNavItems = (userRole?: string) => {
+  // Base navigation items for all users
+  const baseNav = [
     {
       title: "Dashboard",
       url: "/dashboard",
@@ -95,19 +96,47 @@ const data = {
       icon: BarChart3,
       description: "Analytics and reports",
     },
-  ],
+  ];
 
-  navSecondary: [
+  // Role-specific additions
+  const adminOnlyNav = [
+    {
+      title: "Doctors",
+      url: "/dashboard/doctors",
+      icon: Stethoscope,
+      description: "Doctor management",
+    },
+    {
+      title: "Rooms",
+      url: "/dashboard/rooms",
+      icon: Hospital,
+      description: "Room management",
+    },
+  ];
+
+  // Filter navigation based on role
+  if (userRole === "ADMIN") {
+    return [...baseNav, ...adminOnlyNav];
+  }
+
+  return baseNav;
+};
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { role } = useReduxAuth();
+  
+  // Get filtered navigation based on user role
+  const navMain = getNavItems(role);
+
+  const navSecondary = [
     {
       title: "Settings",
       url: "/dashboard/settings",
       icon: Settings,
       description: "System and account settings",
     },
-  ],
-};
+  ];
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       {/* logo section */}
@@ -121,7 +150,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 "group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:px-2"
               )}
             >
-              <Link to="#">
+              <Link to="/dashboard">
                 {/* Logo container that adapts to sidebar state */}
                 <div className="flex items-center gap-3 w-full">
                   {/* Logo image that scales with sidebar */}
@@ -156,11 +185,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto px-0" />
+        <NavMain items={navMain} />
+        <NavSecondary items={navSecondary} className="mt-auto px-0" />
       </SidebarContent>
       <SidebarFooter className="px-0 bg-[#083344]">
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   );

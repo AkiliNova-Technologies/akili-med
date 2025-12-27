@@ -1,20 +1,29 @@
-import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './slices/authSlice';
+import { configureStore } from "@reduxjs/toolkit";
+import authReducer from "./slices/authSlice";
+import patientsReducer from "./slices/patientSlice";
+import doctorsReducer from './slices/doctorSlice';
+import invoiceReducer from './slices/invoiceSlice';
+import contactReducer from './slices/contactSlice';
+import paymentReducer from './slices/paymentSlice'
 
+import appointmentsReducer from "./slices/appointmentsSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    appointments: appointmentsReducer,
+    patients: patientsReducer,
+    doctors: doctorsReducer,
+    invoices: invoiceReducer,
+    contacts: contactReducer,
+    payments: paymentReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignore these action types
-        ignoredActions: ['products/uploadMedia'],
-        // Ignore these field paths in all actions
-        ignoredActionPaths: ['meta.arg', 'payload.timestamp'],
-        // Ignore these paths in the state
-        ignoredPaths: ['products.detectedChanges'],
+        ignoredActions: ["products/uploadMedia"],
+        ignoredActionPaths: ["meta.arg", "payload.timestamp"],
+        ignoredPaths: ["products.detectedChanges"],
       },
     }),
 });
